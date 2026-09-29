@@ -1,0 +1,6 @@
+# 除外対象の設定ファイル（APIキー等を含むファイル）
+data/
+data/filler.xml
+filler.xml
+*.key
+*.log
