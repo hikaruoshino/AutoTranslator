@@ -1,6 +1,6 @@
 _addon.name     = 'AutoTranslator'
-_addon.author   = 'Prototype'
-_addon.version  = '0.9.1'
+_addon.author   = 'hikaruoshino'
+_addon.version  = '0.9.2'
 _addon.commands = {'at', 'autotranslate'}
 
 local http   = require('socket.http')
@@ -10,14 +10,14 @@ local config = require('config')
 
 http.TIMEOUT = 3
 
--- FFXI チャットモードIDの定義マップ（構文エラー修正済み）
+-- FFXI チャットモードIDマップ（構文修復済み）
 local mode_ids = {
-    say   = { [1]=true, [261]=true },
-    shout = { [9]=true },
-    tell  = { [3]=true, [12]=true, [26]=true },
-    party = { [4]=true, [13]=true, [27]=true },
-    ls    = { [5]=true, [6]=true, [28]=true, [29]=true, [30]=true },
-    yell  = { [208]=true }
+    say   = { [1]=true, [9]=true },
+    shout = { [3]=true },
+    tell  = { [12]=true, [26]=true, [27]=true },
+    party = { [4]=true, [212]=true, [213]=true },
+    ls    = { [5]=true, [6]=true, [214]=true, [215]=true, [216]=true },
+    yell  = { [211]=true }
 }
 
 -- filler.xml (data/filler.xml) の初期設定
@@ -193,12 +193,12 @@ local function translate_text(text)
         local parsed = json.decode(response_text)
         if not parsed then return nil end
 
-        if provider == 'openai' and parsed.choices and parsed.choices and parsed.choices.message then
-            return parsed.choices.message.content:gsub("^%s*(.-)%s*$", "%1")
-        elseif provider == 'claude' and parsed.content and parsed.content then
-            return parsed.content.text:gsub("^%s*(.-)%s*$", "%1")
-        elseif provider == 'deepl' and parsed.translations and parsed.translations then
-            return parsed.translations.text:gsub("^%s*(.-)%s*$", "%1")
+        if provider == 'openai' and parsed.choices and parsed.choices[1] and parsed.choices[1].message then
+            return parsed.choices[1].message.content:gsub("^%s*(.-)%s*$", "%1")
+        elseif provider == 'claude' and parsed.content and parsed.content[1] then
+            return parsed.content[1].text:gsub("^%s*(.-)%s*$", "%1")
+        elseif provider == 'deepl' and parsed.translations and parsed.translations[1] then
+            return parsed.translations[1].text:gsub("^%s*(.-)%s*$", "%1")
         end
     end
     return nil
@@ -241,7 +241,7 @@ windower.register_event('addon command', function(cmd, ...)
     cmd = cmd and cmd:lower() or 'help'
 
     if cmd == 'lang' or cmd == 'language' then
-        local l = args and args:lower()
+        local l = args[1] and args[1]:lower()
         if l == 'ja' or l == 'japanese' then
             settings.target_lang = 'ja'
             invalidate_prompt_cache()
@@ -258,7 +258,7 @@ windower.register_event('addon command', function(cmd, ...)
         end
 
     elseif cmd == 'provider' or cmd == 'ai' then
-        local p = args and args:lower()
+        local p = args[1] and args[1]:lower()
         if p and (p == 'openai' or p == 'claude' or p == 'deepl') then
             settings.api_provider = p
             config.save(settings, 'all')
@@ -269,7 +269,8 @@ windower.register_event('addon command', function(cmd, ...)
         end
 
     elseif cmd == 'block' then
-        local sub, name = args and args:lower(), args
+        local sub = args[1] and args[1]:lower()
+        local name = args[2]
         if sub == 'add' and name then
             settings.blocklist[name:lower()] = true
             config.save(settings, 'all')
@@ -284,7 +285,7 @@ windower.register_event('addon command', function(cmd, ...)
         end
 
     elseif cmd == 'word' then
-        local sub = args and args:lower()
+        local sub = args[1] and args[1]:lower()
         table.remove(args, 1)
         local pattern = table.concat(args, ' ')
         if sub == 'add' and pattern ~= '' then
@@ -303,7 +304,7 @@ windower.register_event('addon command', function(cmd, ...)
         end
 
     elseif cmd == 'mode' then
-        if #args == 0 or args == 'status' then
+        if #args == 0 or (args[1] and args[1]:lower() == 'status') then
             for m, active in pairs(settings.modes) do
                 windower.add_to_chat(207, string.format('%s : %s', m:upper(), active and 'ON' or 'OFF'))
             end
@@ -317,7 +318,7 @@ windower.register_event('addon command', function(cmd, ...)
         windower.add_to_chat(207, '監視チャット更新完了')
 
     elseif cmd == 'add' then
-        local key = args and args:lower()
+        local key = args[1] and args[1]:lower()
         table.remove(args, 1)
         local val = table.concat(args, ' ')
         if key and val ~= '' then
@@ -328,7 +329,7 @@ windower.register_event('addon command', function(cmd, ...)
         end
 
     elseif cmd == 'del' then
-        local key = args and args:lower()
+        local key = args[1] and args[1]:lower()
         if key and settings.dictionary[key] then
             settings.dictionary[key] = nil
             invalidate_prompt_cache()
