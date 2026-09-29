@@ -1,0 +1,61 @@
+<?xml version="1.1" ?>
+<settings>
+    <global>
+        <api_keys>
+            <claude>YOUR_CLAUDE_API_KEY</claude>
+            <deepl>YOUR_DEEPL_API_KEY</deepl>
+            <openai>YOUR_OPENAI_API_KEY</openai>
+        </api_keys>
+        <api_provider>openai</api_provider>
+        <blocked_words>
+            <1>rmt</1>
+            <2>gil</2>
+            <3>http</3>
+            <4>www</4>
+            <5>%.com</5>
+            <6>%.net</6>
+            <7>%.org</7>
+            <8>%.store</8>
+            <9>%.shop</9>
+        </blocked_words>
+        <blocklist>
+
+        </blocklist>
+        <chat_color>207</chat_color>
+        <dictionary>
+            <aoe>範囲攻撃(Area of effect)</aoe>
+            <bbl>のちほど戻る(Be back later)</bbl>
+            <brb>すぐ戻る(Be right back)</brb>
+            <cs>イベントシーン(Cutscene)</cs>
+            <d3>死にデジョン(Blood warp)</d3>
+            <d4>リトレース(Retrace)</d4>
+            <dc>回線切断(Disconnected)</dc>
+            <dd>アタッカー(Damage Dealer)</dd>
+            <ding>レベルアップ(Gaining a level)</ding>
+            <dot>スリップダメージ(Damage over time)</dot>
+            <gtg>もう行かなくちゃ(Got to go)</gtg>
+            <inc>敵釣り/接近中(Incoming)</inc>
+            <lfg>パーティ参加希望(Looking for group)</lfg>
+            <lfp>パーティ参加希望(Looking for party)</lfp>
+            <ph>抽選対象モンスター(Place holder)</ph>
+            <pst>Tellください(Please send tell)</pst>
+            <rep>補充要員(Replacement)</rep>
+            <roe>エミネンス・レコード(Records of Eminence)</roe>
+            <sata>不意打ち&amp;だまし討ち(Sneak Attack &amp; Trick Attack)</sata>
+            <tod>NMの没時間(Time of death)</tod>
+            <voke>挑発(Provoke)</voke>
+            <wipe>全滅(Wipeout)</wipe>
+            <yoyd>オーブ使用者総取り(Your orb your drop)</yoyd>
+        </dictionary>
+        <enabled>true</enabled>
+        <modes>
+            <ls>true</ls>
+            <party>true</party>
+            <say>true</say>
+            <shout>true</shout>
+            <tell>true</tell>
+            <yell>true</yell>
+        </modes>
+        <target_lang>ja</target_lang>
+    </global>
+</settings>
