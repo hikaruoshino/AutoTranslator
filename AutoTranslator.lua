@@ -1,6 +1,6 @@
 _addon.name     = 'AutoTranslator'
 _addon.author   = 'hikaruoshino'
-_addon.version  = '0.9.2'
+_addon.version  = '0.9.3'
 _addon.commands = {'at', 'autotranslate'}
 
 local http   = require('socket.http')
@@ -10,15 +10,26 @@ local config = require('config')
 
 http.TIMEOUT = 3
 
--- FFXI チャットモードIDマップ（構文修復済み）
+-- FFXI チャットモードIDマップ
 local mode_ids = {
-    say   = { [1]=true, [9]=true },
-    shout = { [3]=true },
-    tell  = { [12]=true, [26]=true, [27]=true },
-    party = { [4]=true, [212]=true, [213]=true },
-    ls    = { [5]=true, [6]=true, [214]=true, [215]=true, [216]=true },
-    yell  = { [211]=true }
+    say   = {[1]=true, [2]=true},
+    shout = {[3]=true},
+    tell  = {[4]=true, [5]=true, [6]=true},
+    party = {[7]=true, [8]=true, [9]=true},
+    ls    = {[10]=true, [11]=true, [12]=true, [13]=true, [14]=true},
+    yell  = {[30]=true}
 }
+
+-- 文字コード変換ヘルパー関数 (UTF-8 <-> Shift-JIS)
+local function u2s(str)
+    if not str then return '' end
+    return windower.from_utf8 and windower.from_utf8(str) or str
+end
+
+local function s2u(str)
+    if not str then return '' end
+    return windower.to_utf8 and windower.to_utf8(str) or str
+end
 
 -- filler.xml (data/filler.xml) の初期設定
 local defaults = {
@@ -130,6 +141,7 @@ local function translate_text(text)
     local provider = settings.api_provider:lower()
     local system_prompt = build_system_prompt()
     local target_lang_code = (settings.target_lang == 'en') and "EN" or "JA"
+    local utf8_text = s2u(text) -- API送信用にUTF-8へ変換
     local url, headers, req_body
 
     if provider == 'openai' then
@@ -142,7 +154,7 @@ local function translate_text(text)
             model = "gpt-4o-mini",
             messages = {
                 { role = "system", content = system_prompt },
-                { role = "user", content = text }
+                { role = "user", content = utf8_text }
             },
             max_tokens = 100,
             temperature = 0.0
@@ -158,7 +170,7 @@ local function translate_text(text)
         req_body = json.encode({
             model = "claude-3-haiku-20240307",
             system = system_prompt,
-            messages = { { role = "user", content = text } },
+            messages = { { role = "user", content = utf8_text } },
             max_tokens = 100,
             temperature = 0.0
         })
@@ -170,7 +182,7 @@ local function translate_text(text)
             ["Authorization"] = "DeepL-Auth-Key " .. (settings.api_keys.deepl or "")
         }
         req_body = json.encode({
-            text = { text },
+            text = { utf8_text },
             target_lang = target_lang_code
         })
     else
@@ -193,12 +205,17 @@ local function translate_text(text)
         local parsed = json.decode(response_text)
         if not parsed then return nil end
 
+        local result_str = nil
         if provider == 'openai' and parsed.choices and parsed.choices[1] and parsed.choices[1].message then
-            return parsed.choices[1].message.content:gsub("^%s*(.-)%s*$", "%1")
+            result_str = parsed.choices[1].message.content
         elseif provider == 'claude' and parsed.content and parsed.content[1] then
-            return parsed.content[1].text:gsub("^%s*(.-)%s*$", "%1")
+            result_str = parsed.content[1].text
         elseif provider == 'deepl' and parsed.translations and parsed.translations[1] then
-            return parsed.translations[1].text:gsub("^%s*(.-)%s*$", "%1")
+            result_str = parsed.translations[1].text
+        end
+
+        if result_str then
+            return u2s(result_str:gsub("^%s*(.-)%s*$", "%1")) -- FFXI表示用にShift-JISへ変換
         end
     end
     return nil
@@ -246,15 +263,15 @@ windower.register_event('addon command', function(cmd, ...)
             settings.target_lang = 'ja'
             invalidate_prompt_cache()
             config.save(settings, 'all')
-            windower.add_to_chat(207, 'AutoTranslator: 翻訳先言語を [日本語 (JA)] に設定しました。')
+            windower.add_to_chat(207, u2s('AutoTranslator: 翻訳先言語を [日本語 (JA)] に設定しました。'))
         elseif l == 'en' or l == 'english' then
             settings.target_lang = 'en'
             invalidate_prompt_cache()
             config.save(settings, 'all')
-            windower.add_to_chat(207, 'AutoTranslator: Target language set to [English (EN)].')
+            windower.add_to_chat(207, u2s('AutoTranslator: Target language set to [English (EN)].'))
         else
-            windower.add_to_chat(207, 'AutoTranslator: 現在の翻訳先: ' .. settings.target_lang:upper())
-            windower.add_to_chat(123, '使用方法: //at lang ja (日本語へ) | //at lang en (英語へ)')
+            windower.add_to_chat(207, u2s('AutoTranslator: 現在の翻訳先: ') .. settings.target_lang:upper())
+            windower.add_to_chat(123, u2s('使用方法: //at lang ja (日本語へ) | //at lang en (英語へ)'))
         end
 
     elseif cmd == 'provider' or cmd == 'ai' then
@@ -262,10 +279,10 @@ windower.register_event('addon command', function(cmd, ...)
         if p and (p == 'openai' or p == 'claude' or p == 'deepl') then
             settings.api_provider = p
             config.save(settings, 'all')
-            windower.add_to_chat(207, string.format('AutoTranslator: APIプロバイダーを [%s] に変更しました。', p:upper()))
+            windower.add_to_chat(207, u2s(string.format('AutoTranslator: APIプロバイダーを [%s] に変更しました。', p:upper())))
         else
-            windower.add_to_chat(207, string.format('AutoTranslator: 現在のプロバイダー: [%s]', settings.api_provider:upper()))
-            windower.add_to_chat(123, '使用可能: //at provider <openai | claude | deepl>')
+            windower.add_to_chat(207, u2s(string.format('AutoTranslator: 現在のプロバイダー: [%s]', settings.api_provider:upper())))
+            windower.add_to_chat(123, u2s('使用可能: //at provider <openai | claude | deepl>'))
         end
 
     elseif cmd == 'block' then
@@ -274,13 +291,13 @@ windower.register_event('addon command', function(cmd, ...)
         if sub == 'add' and name then
             settings.blocklist[name:lower()] = true
             config.save(settings, 'all')
-            windower.add_to_chat(207, 'ブロック追加: ' .. name)
+            windower.add_to_chat(207, u2s('ブロック追加: ') .. name)
         elseif (sub == 'del' or sub == 'delete') and name then
             settings.blocklist[name:lower()] = nil
             config.save(settings, 'all')
-            windower.add_to_chat(207, 'ブロック削除: ' .. name)
+            windower.add_to_chat(207, u2s('ブロック削除: ') .. name)
         else
-            windower.add_to_chat(207, '--- ブロックリスト ---')
+            windower.add_to_chat(207, u2s('--- ブロックリスト ---'))
             for k in pairs(settings.blocklist) do windower.add_to_chat(207, '- ' .. k) end
         end
 
@@ -291,15 +308,15 @@ windower.register_event('addon command', function(cmd, ...)
         if sub == 'add' and pattern ~= '' then
             table.insert(settings.blocked_words, pattern)
             config.save(settings, 'all')
-            windower.add_to_chat(207, 'NGワード追加: ' .. pattern)
+            windower.add_to_chat(207, u2s('NGワード追加: ') .. pattern)
         elseif sub == 'del' and pattern ~= '' then
             for i, w in ipairs(settings.blocked_words) do
                 if w:lower() == pattern:lower() then table.remove(settings.blocked_words, i); break end
             end
             config.save(settings, 'all')
-            windower.add_to_chat(207, 'NGワード削除: ' .. pattern)
+            windower.add_to_chat(207, u2s('NGワード削除: ') .. pattern)
         else
-            windower.add_to_chat(207, '--- NGワード一覧 ---')
+            windower.add_to_chat(207, u2s('--- NGワード一覧 ---'))
             for _, w in ipairs(settings.blocked_words) do windower.add_to_chat(207, '- ' .. w) end
         end
 
@@ -315,7 +332,7 @@ windower.register_event('addon command', function(cmd, ...)
             if settings.modes[arg:lower()] ~= nil then settings.modes[arg:lower()] = true end
         end
         config.save(settings, 'all')
-        windower.add_to_chat(207, '監視チャット更新完了')
+        windower.add_to_chat(207, u2s('監視チャット更新完了'))
 
     elseif cmd == 'add' then
         local key = args[1] and args[1]:lower()
@@ -325,7 +342,7 @@ windower.register_event('addon command', function(cmd, ...)
             settings.dictionary[key] = val
             invalidate_prompt_cache()
             config.save(settings, 'all')
-            windower.add_to_chat(207, string.format('略語追加 [%s -> %s]', key, val))
+            windower.add_to_chat(207, u2s(string.format('略語追加 [%s -> %s]', key, val)))
         end
 
     elseif cmd == 'del' then
@@ -334,17 +351,17 @@ windower.register_event('addon command', function(cmd, ...)
             settings.dictionary[key] = nil
             invalidate_prompt_cache()
             config.save(settings, 'all')
-            windower.add_to_chat(207, '略語削除 [' .. key .. ']')
+            windower.add_to_chat(207, u2s('略語削除 [' .. key .. ']'))
         end
 
     elseif cmd == 'list' then
-        windower.add_to_chat(207, '--- 略語一覧 ---')
-        for k, v in pairs(settings.dictionary) do windower.add_to_chat(207, k .. ' : ' .. v) end
+        windower.add_to_chat(207, u2s('--- 略語一覧 ---'))
+        for k, v in pairs(settings.dictionary) do windower.add_to_chat(207, u2s(k .. ' : ' .. v)) end
 
     elseif cmd == 'toggle' then
         settings.enabled = not settings.enabled
         windower.add_to_chat(207, 'AutoTranslator: ' .. (settings.enabled and 'ON' or 'OFF'))
     else
-        windower.add_to_chat(207, '//at lang <ja/en> | //at provider <openai/claude/deepl> | //at block | //at word | //at mode')
+        windower.add_to_chat(207, u2s('//at lang <ja/en> | //at provider <openai/claude/deepl> | //at block | //at word | //at mode'))
     end
 end)
