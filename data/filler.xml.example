@@ -1,0 +1,35 @@
+<?xml version="1.0" ?>
+<settings>
+    <global>
+        <api_provider>deepl</api_provider>
+        <target_lang>ja</target_lang>
+        <api_keys>
+            <deepl>YOUR_DEEPL_API_KEY</deepl>
+            <openai>YOUR_OPENAI_API_KEY</openai>
+            <claude>YOUR_CLAUDE_API_KEY</claude>
+        </api_keys>
+        <enabled>true</enabled>
+        <hud_enabled>false</hud_enabled>
+        <chat_color>207</chat_color>
+        <modes>
+            <party>true</party>
+            <ls>true</ls>
+            <tell>true</tell>
+            <shout>true</shout>
+            <yell>true</yell>
+            <say>true</say>
+            <unity>true</unity>
+            <echo>false</echo>
+        </modes>
+        <blocklist />
+        <blocked_words>
+            <1>rmt</1>
+            <2>gil</2>
+            <3>http</3>
+            <4>www</4>
+            <5>%.com</5>
+            <6>%.net</6>
+            <7>%.org</7>
+        </blocked_words>
+    </global>
+</settings>
