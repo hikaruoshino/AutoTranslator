@@ -1,0 +1,42 @@
+# ============================================================
+# AutoTranslator - GitHub に上げないもの / Files never to commit
+# ============================================================
+
+# --- API キーを含む設定・メモ / Settings and notes containing API keys ---
+filler.xml
+data/filler.xml
+*API Key*.txt
+*api_key*.txt
+*.key
+.env
+
+# --- 自動で作られるファイル / Generated at runtime ---
+# 翻訳ヘルパーとのやり取り / Exchange folder for the translator helper
+data/queue/
+# 起動時に作られる用語集の表 / Glossary table written on load
+data/glossary_*.tsv
+# DeepL アカウントに登録した用語集の ID / DeepL glossary ID of your account
+data/deepl_glossary*.txt
+*.log
+*.tmp
+
+# --- バックアップ / Backups ---
+backup/
+
+# --- ビルド結果 (src/ のネイティブ DLL。Windower では未使用) / Build outputs (native DLL, unused on Windower) ---
+*.dll
+*.obj
+*.lib
+*.exp
+*.pdb
+*.ilk
+build/
+
+# --- エディタ / OS / Editors and OS ---
+.vscode/
+.idea/
+.cursor/
+*.mdc
+Thumbs.db
+desktop.ini
+.DS_Store
