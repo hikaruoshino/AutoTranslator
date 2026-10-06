@@ -1,5 +1,5 @@
 _addon.name     = 'AutoTranslator'
-_addon.author   = 'Prototype'
+_addon.author   = 'hikaruoshino'
 _addon.version  = '3.1.2'
 _addon.commands = {'at', 'autotranslate'}
 
