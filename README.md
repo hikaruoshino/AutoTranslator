@@ -22,7 +22,7 @@ English follows the Japanese section. → [English](#english)
   - 定型文だけの発言（yell の売買の行など）は、API を使わずにすぐ表示します。
 - **FF11 のスラング・略語を、分かる言葉にしてから翻訳します。**（v3.2.0）
   - 例: `voke the mob` → 「敵を挑発する」（DeepL だけだと「暴徒を煽る」になります）
-  - 例: `lf1m for omen, need whm` → 「オメンのメンバーをあと1名募集しています。白魔道士が必要です。」
+  - 例: `lf1m for omen, need whm` → 「オーメンのメンバーをあと1名募集しています。白魔道士が必要です。」
   - ジョブ名（`whm` `cor` `brd` …）や `sc`（連携）、`th`（トレジャーハンター）など 60 語ほどを最初から登録しています（`data/slang.xml`）。
   - 同じ略語でも意味が変わるものは、同じ発言や直前の発言の言葉を見て使い分けます。例: `mb` は、連携の話の中なら「マジックバースト」、それ以外は「my bad（ごめん）」。
   - 略語は `//at slang add <略語> <意味>` で追加できます。意味を日本語で書くとそのまま訳文に入り、英語で書くと翻訳サービスがその英語を訳します。
@@ -160,7 +160,7 @@ MIT License です。詳しくは [LICENSE](LICENSE) を見てください。
   - Messages made only of auto-translate phrases (such as yell trade lines) are shown instantly without calling an API.
 - **FFXI slang and abbreviations are rewritten into plain words before translating.** (v3.2.0)
   - e.g. `voke the mob` → 「敵を挑発する」 (DeepL alone gives "暴徒を煽る", "incite the rioters")
-  - e.g. `lf1m for omen, need whm` → 「オメンのメンバーをあと1名募集しています。白魔道士が必要です。」
+  - e.g. `lf1m for omen, need whm` → 「オーメンのメンバーをあと1名募集しています。白魔道士が必要です。」
   - About 60 terms are registered by default (`data/slang.xml`): job names (`whm` `cor` `brd` …), `sc` (skillchain), `th` (Treasure Hunter), and more.
   - Abbreviations with more than one meaning are resolved from the same message or the previous ones. e.g. `mb` becomes "Magic Burst" when skillchains are being discussed, and "my bad" otherwise.
   - Add your own with `//at slang add <abbreviation> <meaning>`. A Japanese meaning is inserted into the translation as is; an English meaning is translated by the service.
