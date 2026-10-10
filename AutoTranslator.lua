@@ -1,6 +1,6 @@
 _addon.name     = 'AutoTranslator'
 _addon.author   = 'hikaruoshino'
-_addon.version  = '3.1.2'
+_addon.version  = '3.2.0'
 _addon.commands = {'at', 'autotranslate'}
 
 local config      = require('config')
@@ -71,7 +71,7 @@ local defaults = {
     },
     blocklist = {},
     blocked_words = {
-        'rmt', 'gil', 'http', 'www', '%.com', '%.net', '%.org'
+        'rmt', 'gil', 'http', 'www', '.com', '.net', '.org'
     },
     dictionary = {
         hello = "こんにちは",
@@ -97,11 +97,13 @@ local function sanitize_settings()
             local item = nil
             if type(v) == 'string' and v ~= '' then item = v:lower()
             elseif type(k) == 'string' and k ~= '' and (v == true or v == 'true') then item = k:lower() end
+            -- NG ワードは文字どおりの部分一致で調べるので、古い設定の '%.com' のような書き方は '.com' に直す
+            if item then item = item:gsub('%%(%p)', '%1') end
             if item and not seen[item] then seen[item] = true; table.insert(clean_bw, item) end
         end
         settings.blocked_words = clean_bw
     else
-        settings.blocked_words = { 'rmt', 'gil', 'http', 'www', '%.com', '%.net', '%.org' }
+        settings.blocked_words = { 'rmt', 'gil', 'http', 'www', '.com', '.net', '.org' }
     end
 
     if type(settings.blocklist) == 'table' then
@@ -184,6 +186,35 @@ local function is_mode_enabled(mode)
     return settings.modes[name] == true
 end
 
+--------------------------------------------------------------------------------
+-- 直前の発言 (文脈)。略語や意味の取りにくい言い回しを、前の発言から判断させるために翻訳サービスへ渡す
+-- チャットの種類 (party / ls など) ごとに、新しいものから数行だけ覚える
+--------------------------------------------------------------------------------
+local CONTEXT_LINES = 3     -- 渡す行数
+local CONTEXT_SEC   = 120   -- これより古い発言は渡さない (話題が変わっている)
+local recent_lines = {}     -- [チャットの種類] = { {time, line}, ... } 古い順
+
+local function get_context(channel)
+    local list = recent_lines[channel]
+    if not list then return nil end
+    local now, out = os.time(), {}
+    for _, item in ipairs(list) do
+        if now - item.time <= CONTEXT_SEC then out[#out + 1] = item.line end
+    end
+    return out
+end
+
+local function remember_line(channel, speaker, text)
+    local list = recent_lines[channel] or {}
+    recent_lines[channel] = list
+    list[#list + 1] = { time = os.time(), line = speaker .. ': ' .. text }
+    while #list > CONTEXT_LINES do table.remove(list, 1) end
+end
+
+windower.register_event('zone change', function()
+    recent_lines = {}
+end)
+
 local function is_blocked(speaker_name, text)
     if speaker_name and speaker_name ~= "" then
         local lower_speaker = speaker_name:lower()
@@ -239,6 +270,13 @@ windower.register_event('incoming text', function(original, modified, mode, modi
     local speaker_name, target_text = chat_parser.parse(original)
     if not target_text or target_text == '' then return end
 
+    -- 直前の発言を取り出してから、この発言を覚える (NG の発言は文脈にも使わない)
+    local channel = mode_id_to_name[tonumber(mode) or -1]
+    local context = get_context(channel)
+    if not is_blocked(speaker_name, target_text) then
+        remember_line(channel, (speaker_name ~= '') and speaker_name or 'Chat', target_text)
+    end
+
     local is_jp = lang_detect.has_japanese(target_text)
     local should_translate = false
 
@@ -281,7 +319,7 @@ windower.register_event('incoming text', function(original, modified, mode, modi
                 pending_requests[req_id] = nil
                 emit(123, encoding.sjis('[AutoTranslator Error] ') .. tostring(err))
             end
-        end)
+        end, context)
     end
 end)
 
@@ -406,11 +444,38 @@ windower.register_event('addon command', function(cmd, ...)
             emit(207, 'AutoTranslator: Current provider -> [' .. tostring(settings.api_provider):upper() .. ']')
         end
 
+    elseif cmd == 'unblock' or (cmd == 'block' and arg1 == 'del') then
+        local name = (cmd == 'block') and rawget(args, 2) or rawget(args, 1)
+        name = name and name:lower() or ''
+        local removed = false
+        for i, k in ipairs(settings.blocklist) do
+            if k == name then
+                table.remove(settings.blocklist, i)
+                removed = true
+                break
+            end
+        end
+        if removed then
+            safe_save_settings()
+            emit(207, 'AutoTranslator: Removed from blocklist -> ' .. name)
+        elseif name == '' then
+            emit(123, 'AutoTranslator: Usage -> //at unblock <name>')
+        else
+            emit(123, 'AutoTranslator: Not in blocklist -> ' .. name)
+        end
+
     elseif cmd == 'block' then
         local name = arg1
         if name ~= '' then
-            table.insert(settings.blocklist, name:lower())
-            safe_save_settings()
+            -- 同じ名前を二重に登録しない
+            local exists = false
+            for _, k in ipairs(settings.blocklist) do
+                if k == name then exists = true; break end
+            end
+            if not exists then
+                table.insert(settings.blocklist, name)
+                safe_save_settings()
+            end
             emit(207, 'AutoTranslator: Added to blocklist -> ' .. name)
         else
             emit(207, 'AutoTranslator: --- Blocklist ---')
@@ -459,11 +524,51 @@ windower.register_event('addon command', function(cmd, ...)
         safe_save_settings()
         emit(207, 'AutoTranslator: Chat modes updated.')
 
+    elseif cmd == 'slang' or cmd == 'typo' then
+        -- //at slang add <語> <訳> / del <語> / list / reload  (//at typo も同じ。誤字の補正は英語だけ)
+        -- 訳に日本語があればそのまま訳文に入れ、英語なら言い換えとして翻訳サービスに訳させる
+        local sl = translator.slang
+        local label = (cmd == 'slang') and 'スラング' or '誤字'
+        if arg1 == 'add' then
+            local word = rawget(args, 2)
+            local value = table.concat(args, ' ', 3)
+            local e = (word and value ~= '') and sl.add(cmd, encoding.to_utf8(word), encoding.to_utf8(value)) or nil
+            if e then
+                translator.invalidate_prompt()
+                emit(207, encoding.sjis('AutoTranslator ' .. label .. '追加: ' .. sl.describe(e)))
+            elseif cmd == 'typo' and word and value ~= '' then
+                emit(123, encoding.sjis('誤字の補正は英語で登録してください (例: //at typo add recieve receive)'))
+            else
+                emit(123, encoding.sjis('使用方法: //at ' .. cmd .. ' add <語> <訳>'))
+            end
+        elseif arg1 == 'del' then
+            local word = rawget(args, 2)
+            if word and sl.del(cmd, encoding.to_utf8(word)) then
+                translator.invalidate_prompt()
+                emit(207, encoding.sjis('AutoTranslator ' .. label .. '削除: ' .. encoding.to_utf8(word)))
+            elseif word then
+                emit(123, encoding.sjis('[' .. encoding.to_utf8(word) .. '] は' .. label .. 'の辞書にありません。'))
+            else
+                emit(123, encoding.sjis('使用方法: //at ' .. cmd .. ' del <語>'))
+            end
+        elseif arg1 == 'reload' then
+            -- data/slang.xml / data/typo.xml をゲーム中に書き換えたとき
+            sl.reload()
+            translator.invalidate_prompt()
+            emit(207, encoding.sjis(string.format('AutoTranslator 辞書を読み込み直しました (スラング %d 語 / 誤字 %d 語)',
+                #sl.list('slang'), #sl.list('typo'))))
+        else
+            local list = sl.list(cmd)
+            emit(207, encoding.sjis(string.format('AutoTranslator --- %sの辞書 (%d 語) ---', label, #list)))
+            for _, e in ipairs(list) do emit(207, encoding.sjis('- ' .. sl.describe(e))) end
+        end
+
     elseif cmd == 'toggle' then
         settings.enabled = not settings.enabled
+        safe_save_settings()
         emit(207, 'AutoTranslator: ' .. (settings.enabled and 'ON' or 'OFF'))
     else
-        emit(207, 'AutoTranslator: //at test <text> | //at add <k> <v> | //at del <k> | //at dict | //at hud | //at lang <ja/en> | //at provider <deepl/openai/claude>')
+        emit(207, 'AutoTranslator: //at test <text> | //at add <k> <v> | //at del <k> | //at dict | //at hud | //at lang <ja/en> | //at provider <deepl/openai/claude> | //at block/unblock <name> | //at slang|typo add/del/list/reload | //at toggle')
     end
 end)
 

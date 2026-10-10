@@ -233,7 +233,7 @@ static bool ExecuteClaude(const std::string& text, const std::string& key, const
     headers.push_back(L"anthropic-version: 2023-06-01");
 
     std::string sys_prompt = "You are an expert FFXI chat translator. Translate into " + (target_lang == "en" ? std::string("natural English") : std::string("natural Japanese")) + ". Output ONLY translated text.";
-    std::string body = "{\"model\":\"claude-3-haiku-20240307\",\"system\":\"" + JsonEscape(sys_prompt) + "\",\"messages\":[{\"role\":\"user\",\"content\":\"" + JsonEscape(text) + "\"}],\"max_tokens\":60}";
+    std::string body = "{\"model\":\"claude-haiku-4-5\",\"system\":\"" + JsonEscape(sys_prompt) + "\",\"messages\":[{\"role\":\"user\",\"content\":\"" + JsonEscape(text) + "\"}],\"max_tokens\":60}";
 
     std::string resp;
     int status = 0;

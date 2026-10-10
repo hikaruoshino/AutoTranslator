@@ -20,6 +20,13 @@ English follows the Japanese section. → [English](#english)
 - **定型文辞書（Tab 変換）をゲームと同じ表記で表示します。**
   - 例: `[at]100 Byne Bill[/at]` → `[100バイン紙幣]`
   - 定型文だけの発言（yell の売買の行など）は、API を使わずにすぐ表示します。
+- **FF11 のスラング・略語を、分かる言葉にしてから翻訳します。**（v3.2.0）
+  - 例: `voke the mob` → 「敵を挑発する」（DeepL だけだと「暴徒を煽る」になります）
+  - 例: `lf1m for omen, need whm` → 「オメンのメンバーをあと1名募集しています。白魔道士が必要です。」
+  - ジョブ名（`whm` `cor` `brd` …）や `sc`（連携）、`th`（トレジャーハンター）など 60 語ほどを最初から登録しています（`data/slang.xml`）。
+  - 同じ略語でも意味が変わるものは、同じ発言や直前の発言の言葉を見て使い分けます。例: `mb` は、連携の話の中なら「マジックバースト」、それ以外は「my bad（ごめん）」。
+  - 略語は `//at slang add <略語> <意味>` で追加できます。意味を日本語で書くとそのまま訳文に入り、英語で書くと翻訳サービスがその英語を訳します。
+- **直前の発言を参考にして訳します。**（v3.2.0）同じチャットの直前の発言（最大 3 行・2 分以内）を、翻訳サービスに参考情報として渡します。DeepL では、参考情報は訳されず、文字数にも数えられません。
 - 一度翻訳した文は覚えておき、2 回目からはすぐに表示します。
 - 翻訳サービスは **DeepL**（おすすめ）、**OpenAI**、**Claude** から選べます。うまくいかないときは、キーが設定されているほかのサービスを順に試します。
 
@@ -94,8 +101,11 @@ Microsoft は VBScript を段階的に廃止する予定で、Windows 11 の新�
 | `//at dict` | 辞書の一覧を表示する |
 | `//at mode <種類...>` | 翻訳するチャットの種類を選ぶ（例: `//at mode party ls tell`）。種類: say shout yell tell party ls unity echo |
 | `//at mode status` | 翻訳するチャットの種類を表示する |
-| `//at block <名前>` | その人の発言を翻訳しない |
+| `//at block <名前>` / `//at unblock <名前>` | その人の発言を翻訳しない／元に戻す（`//at block` だけで一覧を表示） |
 | `//at word add <語>` / `//at word del <語>` | その語を含む発言を翻訳しない（NG ワード） |
+| `//at slang add <略語> <意味>` / `//at slang del <略語>` | スラング・略語の辞書に追加／削除する（例: `//at slang add omw on my way`） |
+| `//at slang list` / `//at slang reload` | スラングの辞書を表示する／`data/slang.xml` を書き換えたあと読み込み直す |
+| `//at typo add <誤字> <正しい綴り>` | よくある誤字の補正表に追加する（`del` / `list` も同じ。表は `data/typo.xml`） |
 | `//at hud` | 翻訳結果を表示する小さな画面の ON / OFF（`//at hud reset` で位置を戻す） |
 | `//at toggle` | 翻訳の ON / OFF |
 
@@ -148,6 +158,13 @@ MIT License です。詳しくは [LICENSE](LICENSE) を見てください。
 - **Auto-translate phrases (Tab completion) are shown exactly as the game writes them.**
   - e.g. `[at]100 Byne Bill[/at]` → `[100バイン紙幣]`
   - Messages made only of auto-translate phrases (such as yell trade lines) are shown instantly without calling an API.
+- **FFXI slang and abbreviations are rewritten into plain words before translating.** (v3.2.0)
+  - e.g. `voke the mob` → 「敵を挑発する」 (DeepL alone gives "暴徒を煽る", "incite the rioters")
+  - e.g. `lf1m for omen, need whm` → 「オメンのメンバーをあと1名募集しています。白魔道士が必要です。」
+  - About 60 terms are registered by default (`data/slang.xml`): job names (`whm` `cor` `brd` …), `sc` (skillchain), `th` (Treasure Hunter), and more.
+  - Abbreviations with more than one meaning are resolved from the same message or the previous ones. e.g. `mb` becomes "Magic Burst" when skillchains are being discussed, and "my bad" otherwise.
+  - Add your own with `//at slang add <abbreviation> <meaning>`. A Japanese meaning is inserted into the translation as is; an English meaning is translated by the service.
+- **Previous messages are used as context.** (v3.2.0) Up to 3 earlier lines from the same chat (within 2 minutes) are passed to the translation service as reference. With DeepL, this context is not translated and is not counted toward your character usage.
 - Translations are cached, so the same message appears instantly the second time.
 - Choose your translation service: **DeepL** (recommended), **OpenAI**, or **Claude**. If one fails, the other services that have a key are tried in order.
 
@@ -222,8 +239,11 @@ The translator helper is "a PowerShell script with no window that connects to th
 | `//at dict` | List the dictionary |
 | `//at mode <types...>` | Choose which chat types to translate (e.g. `//at mode party ls tell`). Types: say shout yell tell party ls unity echo |
 | `//at mode status` | Show which chat types are translated |
-| `//at block <name>` | Do not translate messages from this player |
+| `//at block <name>` / `//at unblock <name>` | Do not translate messages from this player / undo (`//at block` alone lists them) |
 | `//at word add <word>` / `//at word del <word>` | Do not translate messages containing this word (NG words) |
+| `//at slang add <abbreviation> <meaning>` / `//at slang del <abbreviation>` | Add / remove a slang entry (e.g. `//at slang add omw on my way`) |
+| `//at slang list` / `//at slang reload` | List the slang dictionary / reload it after editing `data/slang.xml` |
+| `//at typo add <typo> <correct spelling>` | Add an entry to the typo correction table (`del` / `list` work the same; the table is `data/typo.xml`) |
 | `//at hud` | Toggle the small on-screen translation window (`//at hud reset` resets its position) |
 | `//at toggle` | Turn translation on / off |
 
