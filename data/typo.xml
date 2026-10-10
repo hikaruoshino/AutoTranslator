@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+よくある誤字の補正表。en = 正しい綴り (例: <entry word="recieve" en="receive"/>)
+  ゲーム中に書き換えたら //at slang reload で読み込み直す
+-->
+<typo>
+</typo>

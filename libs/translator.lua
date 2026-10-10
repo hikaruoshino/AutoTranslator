@@ -15,8 +15,12 @@ local native_bridge = require('libs/native_bridge')
 local helper_bridge = require('libs/helper_bridge')
 local glossary      = require('libs/glossary')
 local autotrans     = require('libs/autotrans')
+local slang         = require('libs/slang')
 
 if http then http.TIMEOUT = 2.5 end
+
+-- スラング・誤字の辞書 (data/slang.xml / data/typo.xml)。無ければ既定の内容で作られる
+slang.init(windower.addon_path .. 'data/')
 
 local translator = {}
 local cached_system_prompt = nil
@@ -102,7 +106,8 @@ function translator.shutdown()
     native_bridge.shutdown()
 end
 
-local function execute_single_provider(provider, text, settings)
+-- send_utf8: 前処理 (スラングの置き換え) 済みの文。context: 直前の発言 (DeepL の参考情報)
+local function execute_single_provider(provider, text, settings, send_utf8, context)
     if not http then return nil, "HTTP library unavailable" end
     local raw_key = settings.api_keys and settings.api_keys[provider] or ""
     local api_key = encoding.trim_ascii(raw_key):gsub('^["\'](.-)["\']$', '%1')
@@ -113,10 +118,10 @@ local function execute_single_provider(provider, text, settings)
 
     local system_prompt = build_system_prompt(settings)
     local target_lang_code = (settings.target_lang == 'en') and "EN" or "JA"
-    local utf8_text = encoding.to_utf8(text)
+    local utf8_text = send_utf8 or encoding.to_utf8(text)
     local url, headers, req_body
 
-    local user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AutoTranslator/3.1.2"
+    local user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AutoTranslator/3.2.0"
 
     if provider == 'openai' then
         url = "https://api.openai.com/v1/chat/completions"
@@ -141,7 +146,7 @@ local function execute_single_provider(provider, text, settings)
             ["Connection"] = "keep-alive"
         }
         req_body = json.encode({
-            model = "claude-3-haiku-20240307", system = system_prompt,
+            model = "claude-haiku-4-5", system = system_prompt,
             messages = { { role = "user", content = utf8_text } },
             max_tokens = 60, temperature = 0.0
         })
@@ -157,7 +162,9 @@ local function execute_single_provider(provider, text, settings)
             ["User-Agent"] = user_agent,
             ["Connection"] = "keep-alive"
         }
-        req_body = json.encode({ text = { utf8_text }, target_lang = target_lang_code })
+        local body = { text = { utf8_text }, target_lang = target_lang_code }
+        if context and context ~= '' then body.context = context end
+        req_body = json.encode(body)
     else
         return nil, "Invalid provider"
     end
@@ -211,8 +218,44 @@ local function schedule_async(fn)
     end
 end
 
-function translator.translate(text, settings, req_id, callback)
+-- 印 (\5番号\6) の入ったスラング置き換え済みの文を、送る形にする。
+-- escaped: 文の記号がすでに XML 用になっているか (定型文の <x> を使ったとき)
+-- 戻り値: 送る文, <x> を使ったか
+local function finish_slang(marked, toks, escaped)
+    local has_ja = false
+    for _, t in ipairs(toks) do if t.ja then has_ja = true; break end end
+    if not escaped and not has_ja then return slang.render(marked, toks, 'plain'), false end
+    if not escaped then
+        marked = marked:gsub('&', '&amp;'):gsub('<', '&lt;'):gsub('>', '&gt;')
+    end
+    return slang.render(marked, toks, 'xml'), true
+end
+
+-- スラングの置き換えを OpenAI / Claude 向けの対応表に足す
+local function join_terms(...)
+    local parts = {}
+    -- 途中に nil があっても最後まで見る (ipairs は nil で止まる)
+    for i = 1, select('#', ...) do
+        local t = select(i, ...)
+        if type(t) == 'string' and t ~= '' then parts[#parts + 1] = t end
+    end
+    return table.concat(parts, '; ')
+end
+
+-- スラング・誤字の辞書 (//at slang / //at typo から使う)
+translator.slang = slang
+
+-- context: 同じチャットの直前の発言 (Shift-JIS の文字列の配列。古い順)。
+--          DeepL には「参考情報 (訳さない・課金されない)」として、OpenAI / Claude には指示文に入れて渡す
+function translator.translate(text, settings, req_id, callback, context)
     if not settings.enabled or not text or text == '' then return nil end
+
+    local context_text = ''
+    if type(context) == 'table' and #context > 0 then
+        local lines = {}
+        for _, l in ipairs(context) do lines[#lines + 1] = encoding.to_utf8(l) end
+        context_text = table.concat(lines, '\n')
+    end
 
     -- 1. Check local dictionary / memory cache (0ms instant return)
     local local_res = cache.get(text)
@@ -225,20 +268,52 @@ function translator.translate(text, settings, req_id, callback)
     -- 1.2 FFXI の定型文辞書 (Tab 変換) を、ゲームと同じ表記にする
     --     英語→日本語: [100バイン紙幣] / 日本語→英語: [100 Byne Bill]
     local lang = (settings.target_lang == 'en') and 'en' or 'ja'
+    local utf8_text = encoding.to_utf8(text)
     local at_send, at_xml, at_terms
-    do
-        local at_marked, at_toks = autotrans.extract(encoding.to_utf8(text))
-        if at_marked then
-            -- 定型文だけの発言は、API を使わずにその場で出す
-            if not autotrans.has_other_text(at_marked, lang) then
-                local plain = autotrans.render(at_marked, at_toks, lang)
-                cache.set(text, plain)
-                local sjis_text = encoding.sjis(plain)
-                if type(callback) == 'function' then callback(sjis_text, nil) end
-                return sjis_text
-            end
-            at_send, at_xml, at_terms = autotrans.to_request(at_marked, at_toks, lang)
+    local at_marked, at_toks = autotrans.extract(utf8_text)
+    if at_marked then
+        -- 定型文だけの発言は、API を使わずにその場で出す
+        if not autotrans.has_other_text(at_marked, lang) then
+            local plain = autotrans.render(at_marked, at_toks, lang)
+            cache.set(text, plain)
+            local sjis_text = encoding.sjis(plain)
+            if type(callback) == 'function' then callback(sjis_text, nil) end
+            return sjis_text
         end
+    end
+
+    -- 1.3 FF11 のスラング・略語と誤字を、翻訳サービスに分かる言い方にする。英語→日本語のときだけ
+    --     定型文の印 (\3番号\4) と地名 (\1番号\2 で守る) は置き換えない
+    local slang_marked, slang_toks, slang_terms = nil, {}, ''
+    if lang == 'ja' then
+        local base = at_marked or utf8_text
+        local pmarked, pfound = glossary.protect(base)
+        local m, toks = slang.apply(pmarked or base, context_text)
+        if #toks > 0 or m ~= (pmarked or base) then
+            if pfound then
+                m = m:gsub('\1(%d+)\2', function(n) return pfound[tonumber(n)].en end)
+            end
+            slang_marked, slang_toks = m, toks
+            slang_terms = slang.describe_terms(toks)
+        end
+    end
+
+    if at_marked then
+        at_send, at_xml, at_terms = autotrans.to_request(slang_marked or at_marked, at_toks, lang)
+        if slang_marked then at_send, at_xml = finish_slang(at_send, slang_toks, at_xml) end
+    end
+
+    -- 置き換えたら日本語しか残らない発言 ("rr?" → "リレイズ?") は、API を使わずにその場で出す
+    local slang_send, slang_xml
+    if slang_marked and not at_marked then
+        local plain = slang.render(slang_marked, slang_toks, 'plain')
+        if not plain:find('[A-Za-z]') then
+            cache.set(text, plain)
+            local sjis_text = encoding.sjis(plain)
+            if type(callback) == 'function' then callback(sjis_text, nil) end
+            return sjis_text
+        end
+        slang_send, slang_xml = finish_slang(slang_marked, slang_toks, false)
     end
 
     -- 1.5 FFXI 固有名詞 (エリア名など) を正しい日本語名にする。英語→日本語のときだけ
@@ -271,16 +346,18 @@ function translator.translate(text, settings, req_id, callback)
         -- 英語→日本語: 元の英文をそのまま送る。地名は DeepL では用語集で、OpenAI / Claude では指示文で正しく訳させる。
         --              定型文入りのときは、地名以外の定型文を <x>[日本語名]</x> で囲んだ文を送る (at_xml = true)
         -- 日本語→英語: 地名をゲームの英語名に置き換えた文を送る (ジュノ港 → Port Jeuno)
-        local send_text = at_send or encoding.to_utf8(text)
+        --              スラングを置き換えたときは、その文を送る (日本語にした語は <x>..</x> で「訳さない」)
+        local send_text = at_send or slang_send or utf8_text
+        local xml = at_xml or slang_xml
         local terms
         if lang == 'en' then
             local place_terms
             send_text, place_terms = glossary.replace_ja(send_text)
-            terms = table.concat({ at_terms or '', place_terms }, '; '):gsub('^; ', ''):gsub('; $', '')
+            terms = join_terms(at_terms, place_terms)
         else
-            terms = at_terms or (marked and glossary.describe(found)) or ''
+            terms = join_terms(at_terms or (marked and glossary.describe(found)), slang_terms)
         end
-        if helper_bridge.submit(req_id, send_text, settings, build_system_prompt(settings), terms, at_xml) then
+        if helper_bridge.submit(req_id, send_text, settings, build_system_prompt(settings), terms, xml, context_text) then
             helper_texts[req_id] = text
             if type(callback) == 'function' then callback("ASYNC_HELPER_SUBMITTED", nil) end
             return "ASYNC_HELPER_SUBMITTED"
@@ -302,9 +379,13 @@ function translator.translate(text, settings, req_id, callback)
             provider_order = {'deepl', 'openai', 'claude'}
         end
 
+        -- スラングを置き換えた文があれば、それを (印を外して) 送る
+        local send_utf8 = nil
+        if slang_marked and not at_marked then send_utf8 = slang.render(slang_marked, slang_toks, 'plain') end
+
         local last_err = nil
         for _, prov in ipairs(provider_order) do
-            local res, err = execute_single_provider(prov, text, settings)
+            local res, err = execute_single_provider(prov, text, settings, send_utf8, context_text)
             if res and res ~= '' then
                 cache.set(text, res)
                 if type(callback) == 'function' then callback(encoding.sjis(res), nil) end

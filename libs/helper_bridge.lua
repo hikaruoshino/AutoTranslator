@@ -68,7 +68,8 @@ function helper_bridge.is_started()
 end
 
 -- 翻訳を依頼する。text は UTF-8。terms は文に含まれる固有名詞の対応 ("Norg = ノーグ; ...")
-function helper_bridge.submit(req_id, text, settings, system_prompt, terms, xml)
+-- context は同じチャットの直前の発言 (UTF-8、改行区切り)。訳さずに参考にだけ使う
+function helper_bridge.submit(req_id, text, settings, system_prompt, terms, xml, context)
     if not started then return false end
     local name = file_name(req_id)
     local body = json.encode({
@@ -79,6 +80,7 @@ function helper_bridge.submit(req_id, text, settings, system_prompt, terms, xml)
         system_prompt = system_prompt or '',
         terms = terms or '',
         xml = xml and true or false,  -- true: text に <x>[定型文]</x> の「訳さない」印が入っている
+        context = context or '',
     })
     -- 書きかけをヘルパーに読まれないよう、.tmp に書いてから名前を変える
     local tmp = queue_dir .. name .. '.tmp'

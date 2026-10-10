@@ -192,6 +192,8 @@ function Invoke-DeepL([string]$key, $r, [bool]$useGlossary) {
     $source = if ($pairName -eq 'ja-en') { 'JA' } else { 'EN' }
     $isXml = ($r.xml -eq $true)
     $body = @{ text = @([string]$r.text); target_lang = $target }
+    # 同じチャットの直前の発言。訳されず、文字数にも数えられないが、略語や言い回しの判断に使われる
+    if ([string]$r.context -ne '') { $body.context = [string]$r.context }
     if ($pairName -eq 'ja-en') {
         # 日本語の文に英語名 (地名・定型文) を入れて送るので、英語の文と取り違えないよう元の言語を指定する
         $body.source_lang = 'JA'
@@ -239,6 +241,10 @@ function Get-SystemPrompt($r) {
     if ($terms -ne '') {
         $prompt += "`nAlways translate these FFXI terms exactly as given, and keep any [bracketed] terms unchanged: " + $terms
     }
+    $context = [string]$r.context
+    if ($context -ne '') {
+        $prompt += "`nRecent lines in the same chat, for context only (do not translate them):`n" + $context
+    }
     return $prompt
 }
 
@@ -276,7 +282,7 @@ function Invoke-Provider([string]$provider, [string]$key, $r) {
         }
         'claude' {
             $body = @{
-                model = 'claude-3-haiku-20240307'
+                model = 'claude-haiku-4-5'
                 system = (Get-SystemPrompt $r)
                 messages = @(@{ role = 'user'; content = $plainText })
                 max_tokens = 60

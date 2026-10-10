@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+FF11 のスラング・略語の辞書。en = 英語に言い換えて訳させる / ja = 日本語のまま訳文に入れる
+  near = 同じ発言か直前の発言にこの語のどれかがあるときだけ / alone = その語だけで区切られているときだけ
+  else_en / else_ja = 条件に合わないときの置き換え
+  ゲーム中に書き換えたら //at slang reload で読み込み直す
+-->
+<slang>
+    <entry word="lf1m" en="looking for 1 more member"/>
+    <entry word="lf2m" en="looking for 2 more members"/>
+    <entry word="lf3m" en="looking for 3 more members"/>
+    <entry word="lfm" en="looking for more members"/>
+    <entry word="lfg" en="looking for a party to join"/>
+    <entry word="lfp" en="looking for a party to join"/>
+    <entry word="bbl" en="be back later"/>
+    <entry word="gz" en="congratulations"/>
+    <entry word="grats" en="congratulations"/>
+    <entry word="kk" en="okay"/>
+    <entry word="gj" en="good job"/>
+    <entry word="lul" en="lol"/>
+    <entry word="ez clap" en="that was too easy"/>
+    <entry word="ez" en="easy"/>
+    <entry word="drop" ja="ドロップ" near="gz grats congrats congratulations lucky finally"/>
+    <entry word="ws" en="WS"/>
+    <entry word="sc" ja="連携"/>
+    <entry word="mb" ja="マジックバースト" else_en="my bad" near="sc skillchain burst nuke nukes fusion fragmentation gravitation distortion light darkness radiance umbra liquefaction impaction detonation scission reverberation induration compression transfixion fire ice wind earth thunder water stone aero blizzard"/>
+    <entry word="2hr" ja="SPアビリティ"/>
+    <entry word="1hr" ja="SPアビリティ"/>
+    <entry word="sp1" en="SP1"/>
+    <entry word="sp2" en="SP2"/>
+    <entry word="nm" en="NM"/>
+    <entry word="pop" en="spawn" near="nm"/>
+    <entry word="popped" en="spawned" near="nm"/>
+    <entry word="mob" en="enemy"/>
+    <entry word="mobs" en="enemies"/>
+    <entry word="voke" en="Provoke"/>
+    <entry word="inc" en="enemy incoming" alone="true"/>
+    <entry word="add" en="another enemy has joined" alone="true"/>
+    <entry word="pull" en="lure the enemy" near="ready mob mobs nm next tank camp"/>
+    <entry word="nuke" en="cast offensive magic"/>
+    <entry word="dd" ja="アタッカー"/>
+    <entry word="th" ja="トレジャーハンター"/>
+    <entry word="rr" ja="リレイズ"/>
+    <entry word="cap" en="capped" near="merit merits exp xp jp cp ep level lvl"/>
+    <entry word="ki" ja="だいじなもの"/>
+    <entry word="ah" ja="競売" near="price prices sell selling sold buy buying bid list listed stock check"/>
+    <entry word="pl" en="power level"/>
+    <entry word="ls" en="LS"/>
+    <entry word="ambu" ja="アンバスケード"/>
+    <entry word="vd" ja="とてむず"/>
+    <entry word="war" ja="戦士" near="need lf lfg lfm lfp lf1m lf2m lf3m job jobs tank dd main sub"/>
+    <entry word="mnk" ja="モンク"/>
+    <entry word="whm" ja="白魔道士"/>
+    <entry word="blm" ja="黒魔道士"/>
+    <entry word="rdm" ja="赤魔道士"/>
+    <entry word="thf" ja="シーフ"/>
+    <entry word="pld" ja="ナイト"/>
+    <entry word="drk" ja="暗黒騎士"/>
+    <entry word="bst" ja="獣使い"/>
+    <entry word="brd" ja="吟遊詩人"/>
+    <entry word="rng" ja="狩人"/>
+    <entry word="sam" ja="侍"/>
+    <entry word="nin" ja="忍者"/>
+    <entry word="drg" ja="竜騎士"/>
+    <entry word="smn" ja="召喚士"/>
+    <entry word="blu" ja="青魔道士"/>
+    <entry word="cor" ja="コルセア"/>
+    <entry word="pup" ja="からくり士"/>
+    <entry word="dnc" ja="踊り子"/>
+    <entry word="sch" ja="学者"/>
+    <entry word="geo" ja="風水士"/>
+    <entry word="run" ja="魔導剣士" near="need lf lfg lfm lfp lf1m lf2m lf3m job jobs tank dd main sub"/>
+</slang>
