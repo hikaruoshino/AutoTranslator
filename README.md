@@ -30,6 +30,12 @@ English follows the Japanese section. → [English](#english)
 - 一度翻訳した文は覚えておき、2 回目からはすぐに表示します。
 - 翻訳サービスは **DeepL**（おすすめ）、**OpenAI**、**Claude** から選べます。うまくいかないときは、キーが設定されているほかのサービスを順に試します。
 
+### 表示例
+
+![チャットログの翻訳の表示例](images/chat-example.png)
+
+日本語の発言には英語の訳が、英語の発言には日本語の訳が、チャットログに続けて表示されます（プレイヤー名は画像で隠しています）。
+
 ### 必要なもの
 
 **追加でインストールするソフトウェアや Lua のライブラリはありません。** 次のものがそろっていれば動きます。
@@ -167,6 +173,12 @@ MIT License です。詳しくは [LICENSE](LICENSE) を見てください。
 - **Previous messages are used as context.** (v3.2.0) Up to 3 earlier lines from the same chat (within 2 minutes) are passed to the translation service as reference. With DeepL, this context is not translated and is not counted toward your character usage.
 - Translations are cached, so the same message appears instantly the second time.
 - Choose your translation service: **DeepL** (recommended), **OpenAI**, or **Claude**. If one fails, the other services that have a key are tried in order.
+
+### Example
+
+![Example of translated chat log](images/chat-example.png)
+
+Japanese messages are followed by an English translation, and English messages by a Japanese one, right in the chat log (player names are hidden in the image).
 
 ### Requirements
 
