@@ -230,7 +230,7 @@ local function is_blocked(speaker_name, text)
 end
 
 --------------------------------------------------------------------------------
--- 非同期の翻訳結果 (Native DLL / 翻訳ヘルパー) のポーリング (Prerender / Frame Event)
+-- 非同期の翻訳結果 (翻訳ヘルパー) のポーリング (Prerender / Frame Event)
 --------------------------------------------------------------------------------
 windower.register_event('prerender', function()
     local res = translator.poll_result()
@@ -573,6 +573,6 @@ windower.register_event('addon command', function(cmd, ...)
 end)
 
 windower.register_event('unload', function()
-    -- 翻訳ヘルパーに終了を伝え、DLL を使っていれば止める
+    -- 翻訳ヘルパーに終了を伝える
     translator.shutdown()
 end)

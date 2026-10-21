@@ -11,7 +11,6 @@ local ltn12         = require('ltn12')
 local json          = require('libs/json')
 local encoding      = require('libs/encoding')
 local cache         = require('libs/cache')
-local native_bridge = require('libs/native_bridge')
 local helper_bridge = require('libs/helper_bridge')
 local glossary      = require('libs/glossary')
 local autotrans     = require('libs/autotrans')
@@ -25,8 +24,6 @@ slang.init(windower.addon_path .. 'data/')
 local translator = {}
 local cached_system_prompt = nil
 local helper_texts = {}   -- [req_id] = 翻訳元の文 (ヘルパーの結果をキャッシュに入れるため)
-
-native_bridge.init()
 
 -- FFXI 固有名詞の対応表を書き出す。ヘルパーがこれを DeepL の用語集として登録する
 -- (英語→日本語だけ。DeepL の用語集は 1 つまでなので、日本語→英語は glossary.replace_ja で地名を置き換える)
@@ -65,22 +62,8 @@ function translator.invalidate_prompt()
     cache.invalidate()
 end
 
-function translator.has_native()
-    return native_bridge.is_available()
-end
-
-function translator.poll_native()
-    if native_bridge.is_available() then
-        return native_bridge.poll_result()
-    end
-    return nil
-end
-
--- DLL かヘルパーから届いた結果を 1 件返す (無ければ nil)。text / error は Shift-JIS
+-- ヘルパーから届いた結果を 1 件返す (無ければ nil)。text / error は Shift-JIS
 function translator.poll_result()
-    local res = translator.poll_native()
-    if res then return res end
-
     local h = helper_bridge.poll()
     if not h then return nil end
 
@@ -103,7 +86,6 @@ end
 
 function translator.shutdown()
     helper_bridge.stop()
-    native_bridge.shutdown()
 end
 
 -- send_utf8: 前処理 (スラングの置き換え) 済みの文。context: 直前の発言 (DeepL の参考情報)
@@ -332,16 +314,7 @@ function translator.translate(text, settings, req_id, callback, context)
         end
     end
 
-    -- 2. Native C++ DLL Multithreaded Async Engine (0ms main thread delay)
-    if native_bridge.is_available() then
-        local submitted = native_bridge.translate_async(req_id or "0", text, settings)
-        if submitted then
-            if type(callback) == 'function' then callback("ASYNC_NATIVE_SUBMITTED", nil) end
-            return "ASYNC_NATIVE_SUBMITTED"
-        end
-    end
-
-    -- 3. 翻訳ヘルパー (別プロセス) に依頼する。結果は poll_result() で受け取るので、ゲームは止まらない
+    -- 2. 翻訳ヘルパー (別プロセス) に依頼する。結果は poll_result() で受け取るので、ゲームは止まらない
     if helper_bridge.is_started() and req_id then
         -- 英語→日本語: 元の英文をそのまま送る。地名は DeepL では用語集で、OpenAI / Claude では指示文で正しく訳させる。
         --              定型文入りのときは、地名以外の定型文を <x>[日本語名]</x> で囲んだ文を送る (at_xml = true)
@@ -364,7 +337,7 @@ function translator.translate(text, settings, req_id, callback, context)
         end
     end
 
-    -- 4. Fallback Lua Http pipeline (ヘルパーが使えないときだけ。返事を待つ間ゲームが止まる)
+    -- 3. Fallback Lua Http pipeline (ヘルパーが使えないときだけ。返事を待つ間ゲームが止まる)
     schedule_async(function()
         local provider_order = {}
         local primary = (settings.api_provider or 'deepl'):lower()

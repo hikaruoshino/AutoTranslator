@@ -138,7 +138,9 @@ Microsoft は VBScript を段階的に廃止する予定で、Windows 11 の新�
 
 - **API キーは `filler.xml` に平文で保存されます。** `filler.xml` は `.gitignore` で除外しています。GitHub などに上げないでください。
 - 翻訳サービスの利用料金・文字数の上限は、各サービスの規約に従います。
-- Windower の Lua（5.1）では ffi が使えないため、`src/` と `libs/native_bridge.lua` のネイティブ DLL による翻訳は使われません（翻訳ヘルパーが代わりに動きます）。
+- **翻訳サービスに送られる内容:** 翻訳する発言の本文と、同じチャットの直前の発言（最大 3 行・2 分以内）が、DeepL / OpenAI / Claude のうち設定したサービスへ送られます。**他の人の発言だけでなく、自分の発言も、tell（個人宛）も対象です。** 送りたくないチャットの種類は `//at mode` で外してください。直前の発言には「発言者名: 本文」の形で名前が付いて送られます。
+- **翻訳ヘルパーの起動のしかた:** `helper/start_helper.vbs` が、画面を出さずに `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File at_helper.ps1` を起動します。Windower の `windower.execute` では引数を渡せないため、この方法にしています。起動するのはアドオンのフォルダ内のスクリプトだけで、中身はすべてテキストです。
+- 翻訳の本文はログに残しません。`data/queue/` の依頼ファイル（`.req`）は、ヘルパーが読んだ直後に消えます。
 - OpenAI / Claude で使うモデル名は `helper/at_helper.ps1` の中にあります。提供が終わったモデルの場合は書き換えてください。
 
 ### ライセンス
@@ -282,7 +284,9 @@ Game (Lua)                                    Translator helper (PowerShell, no 
 
 - **API keys are stored in plain text in `filler.xml`.** `filler.xml` is excluded by `.gitignore`. Never upload it to GitHub or anywhere else.
 - Usage fees and character limits follow each translation service's terms.
-- Windower's Lua (5.1) has no ffi, so the native-DLL translation in `src/` and `libs/native_bridge.lua` is not used (the translator helper is used instead).
+- **What is sent to the translation service:** the text of each message to translate, plus up to 3 earlier lines from the same chat (within 2 minutes), go to the service you configured (DeepL / OpenAI / Claude). **This includes your own messages and tells, not only other people's.** Use `//at mode` to turn off chat types you do not want sent. The earlier lines are sent as "Speaker: text", so speaker names go along with them.
+- **How the helper is started:** `helper/start_helper.vbs` runs `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File at_helper.ps1` with no window, because `windower.execute` cannot pass arguments. It runs only the scripts in the addon folder, and all of them are plain text.
+- Message text is not written to any log. The request files (`.req`) in `data/queue/` are deleted as soon as the helper reads them.
 - The OpenAI / Claude model names are set in `helper/at_helper.ps1`. Update them if a model is retired.
 
 ### License
