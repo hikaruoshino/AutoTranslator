@@ -142,6 +142,7 @@ Microsoft は VBScript を段階的に廃止する予定で、Windows 11 の新�
 - **翻訳ヘルパーの起動のしかた:** `helper/start_helper.vbs` が、画面を出さずに `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File at_helper.ps1` を起動します。Windower の `windower.execute` では引数を渡せないため、この方法にしています。起動するのはアドオンのフォルダ内のスクリプトだけで、中身はすべてテキストです。
 - 翻訳の本文はログに残しません。`data/queue/` の依頼ファイル（`.req`）は、ヘルパーが読んだ直後に消えます。
 - OpenAI / Claude で使うモデル名は `helper/at_helper.ps1` の中にあります。提供が終わったモデルの場合は書き換えてください。
+- 外部ツールの利用は自己責任でお願いします。
 
 ### ライセンス
 
@@ -288,6 +289,7 @@ Game (Lua)                                    Translator helper (PowerShell, no 
 - **How the helper is started:** `helper/start_helper.vbs` runs `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File at_helper.ps1` with no window, because `windower.execute` cannot pass arguments. It runs only the scripts in the addon folder, and all of them are plain text.
 - Message text is not written to any log. The request files (`.req`) in `data/queue/` are deleted as soon as the helper reads them.
 - The OpenAI / Claude model names are set in `helper/at_helper.ps1`. Update them if a model is retired.
+- Use of external tools is at your own risk.
 
 ### License
 
