@@ -18,7 +18,8 @@
             <shout>true</shout>
             <yell>true</yell>
             <say>true</say>
-            <echo>true</echo>
+            <unity>true</unity>
+            <echo>false</echo>
         </modes>
         <blocklist />
         <blocked_words>
