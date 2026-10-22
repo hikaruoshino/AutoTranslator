@@ -11,9 +11,9 @@ English follows the Japanese section. → [English](#english)
 
 - **会話のチャットを自動で翻訳**して、チャットログに `発言者 < 訳文` の形で表示します。
   - 対象: say / shout / yell / tell / party / リンクシェル 1・2 / ユニティ
-  - システムメッセージ、NPC の会話、戦闘ログ、/echo、ほかのアドオンの表示は翻訳しません。
+  - システムメッセージ、NPC の会話、戦闘ログ、ほかのアドオンの表示は翻訳しません。/echo も、初期設定では翻訳しません（`//at mode` で有効にできます）。
 - **英語 → 日本語** と **日本語 → 英語** の両方に対応しています（`//at lang ja` / `//at lang en`）。
-- **翻訳中もゲームが止まりません。** 翻訳は別のプログラム（PowerShell の翻訳ヘルパー）が行います。
+- **翻訳中もゲームが止まりません。** 翻訳は別のプログラム（PowerShell の翻訳ヘルパー）が行うので、ヘルパーが動いているあいだは、翻訳を待ってもゲームは止まりません。
 - **エリア名をゲームの正式な名前で訳します。**
   - 例: `lets go to Norg` → 「ノーグに行こう」（DeepL だけだと「ノルグ」「ノルウェー」になります）
   - 例: `ジュノ港で待ち合わせしましょう` → `Let's meet up at Port Jeuno.`
@@ -138,11 +138,11 @@ Microsoft は VBScript を段階的に廃止する予定で、Windows 11 の新�
 
 - **API キーは `filler.xml` に平文で保存されます。** `filler.xml` は `.gitignore` で除外しています。GitHub などに上げないでください。
 - 翻訳サービスの利用料金・文字数の上限は、各サービスの規約に従います。
-- **翻訳サービスに送られる内容:** 翻訳する発言の本文と、同じチャットの直前の発言（最大 3 行・2 分以内）が、DeepL / OpenAI / Claude のうち設定したサービスへ送られます。**他の人の発言だけでなく、自分の発言も、tell（個人宛）も対象です。** 送りたくないチャットの種類は `//at mode` で外してください。直前の発言には「発言者名: 本文」の形で名前が付いて送られます。
+- **翻訳サービスに送られる内容:** 翻訳する発言の本文と、同じチャットの直前の発言（最大 3 行・2 分以内）が、DeepL / OpenAI / Claude のうち設定したサービスへ送られます。そのサービスが失敗したときは、`filler.xml` にキーが入っているほかのサービスにも、順に送られます（使わないサービスのキーは `YOUR_...` のままにしてください）。**他の人の発言だけでなく、自分の発言も、tell（個人宛）も対象です。他のプレイヤーの発言は、その人に断らずに外部のサービスへ送られます。** 送りたくないチャットの種類は `//at mode` で外してください。直前の発言には「発言者名: 本文」の形で名前が付いて送られます。各サービスの規約とプライバシーの扱いは、各自で確認してください。
 - **翻訳ヘルパーの起動のしかた:** `helper/start_helper.vbs` が、画面を出さずに `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File at_helper.ps1` を起動します。Windower の `windower.execute` では引数を渡せないため、この方法にしています。起動するのはアドオンのフォルダ内のスクリプトだけで、中身はすべてテキストです。
 - 翻訳の本文はログに残しません。`data/queue/` の依頼ファイル（`.req`）は、ヘルパーが読んだ直後に消えます。
 - OpenAI / Claude で使うモデル名は `helper/at_helper.ps1` の中にあります。提供が終わったモデルの場合は書き換えてください。
-- 外部ツールの利用は自己責任でお願いします。
+- Windower を含む外部ツールの利用は、FFXI の利用規約では認められていません。アカウントに不利益が及ぶ可能性があり、作者は責任を負えません。自己責任で使ってください。
 
 ### ライセンス
 
@@ -158,11 +158,11 @@ MIT License です。詳しくは [LICENSE](LICENSE) を見てください。
 
 - **Automatically translates conversation chat** and shows it in the chat log as `Speaker < translation`.
   - Translated: say / shout / yell / tell / party / linkshell 1 & 2 / unity
-  - Not translated: system messages, NPC dialogue, battle logs, /echo, and output from other addons.
+  - Not translated: system messages, NPC dialogue, battle logs, and output from other addons. /echo is not translated by default either (`//at mode` can turn it on).
 - Works in **both directions: English → Japanese** and **Japanese → English** (`//at lang ja` / `//at lang en`).
-- **The game never freezes while translating.** Translation runs in a separate program (a PowerShell translator helper).
+- **The game does not freeze while the helper is running.** Translation runs in a separate program (a PowerShell translator helper), so waiting for a translation does not stop the game.
 - **Area names are translated using the official in-game names.**
-  - e.g. `lets go to Norg` → 「ノーグに行こう」 (DeepL alone gives "ノルグ" or "ノルウェー")
+  - e.g. `lets go to Norg` → 「ノーグに行こう」 (DeepL alone gives "ノルグ" or "ノルウェー", which is Norway)
   - e.g. `ジュノ港で待ち合わせしましょう` → `Let's meet up at Port Jeuno.`
 - **Auto-translate phrases (Tab completion) are shown exactly as the game writes them.**
   - e.g. `[at]100 Byne Bill[/at]` → `[100バイン紙幣]`
@@ -285,11 +285,11 @@ Game (Lua)                                    Translator helper (PowerShell, no 
 
 - **API keys are stored in plain text in `filler.xml`.** `filler.xml` is excluded by `.gitignore`. Never upload it to GitHub or anywhere else.
 - Usage fees and character limits follow each translation service's terms.
-- **What is sent to the translation service:** the text of each message to translate, plus up to 3 earlier lines from the same chat (within 2 minutes), go to the service you configured (DeepL / OpenAI / Claude). **This includes your own messages and tells, not only other people's.** Use `//at mode` to turn off chat types you do not want sent. The earlier lines are sent as "Speaker: text", so speaker names go along with them.
+- **What is sent to the translation service:** the text of each message to translate, plus up to 3 earlier lines from the same chat (within 2 minutes), go to the service you configured (DeepL / OpenAI / Claude). If that service fails, the text is sent to the other services that have a key in `filler.xml`, in order (leave `YOUR_...` in the keys of services you do not use). **This includes your own messages and tells, not only other people's, and other players' messages are sent without asking them.** Use `//at mode` to turn off chat types you do not want sent. The earlier lines are sent as "Speaker: text", so speaker names go along with them. Check each service's terms and privacy policy yourself.
 - **How the helper is started:** `helper/start_helper.vbs` runs `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File at_helper.ps1` with no window, because `windower.execute` cannot pass arguments. It runs only the scripts in the addon folder, and all of them are plain text.
 - Message text is not written to any log. The request files (`.req`) in `data/queue/` are deleted as soon as the helper reads them.
 - The OpenAI / Claude model names are set in `helper/at_helper.ps1`. Update them if a model is retired.
-- Use of external tools is at your own risk.
+- Third-party tools, including Windower, are not permitted by the FFXI terms of service. Your account may be penalized, and the author takes no responsibility. Use at your own risk.
 
 ### License
 
