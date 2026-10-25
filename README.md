@@ -68,7 +68,7 @@ Microsoft は VBScript を段階的に廃止する予定で、Windows 11 の新�
 | **OpenAI** | https://platform.openai.com/signup | https://platform.openai.com/api-keys |
 | **Anthropic (Claude)** | https://console.anthropic.com/ | https://console.anthropic.com/settings/keys |
 
-- **DeepL**: 「DeepL API Free（無料版）」に登録すると、毎月一定の文字数まで無料で翻訳できます。登録後、「API キー」のページでキーをコピーします（無料版のキーは末尾が `:fx`）。
+- **DeepL**: DeepL の無料のプラン (API Developer) は、**一回限りの 100 万文字**までです (毎月の無料枠ではありません。2026-10-26 に画面で確認)。使い切ると有料になります。登録後、「API キー」のページでキーをコピーします（無料版のキーは末尾が `:fx`）。
 - **OpenAI / Anthropic**: アカウントを作り、支払い方法（クレジット）を登録してから、API キーのページで新しいキーを作ります。キーは作ったときに一度しか表示されないので、すぐにコピーしてください。利用した分だけ料金がかかります。
 - 料金・無料枠・登録の手順は変わることがあります。最新の情報は各サービスのページで確認してください。
 
@@ -215,7 +215,7 @@ The translator helper is "a PowerShell script with no window that connects to th
 | **OpenAI** | https://platform.openai.com/signup | https://platform.openai.com/api-keys |
 | **Anthropic (Claude)** | https://console.anthropic.com/ | https://console.anthropic.com/settings/keys |
 
-- **DeepL**: Sign up for "DeepL API Free" to translate a set number of characters per month at no cost. After signing up, copy your key from the "API keys" page (free-plan keys end with `:fx`).
+- **DeepL**: The free DeepL API plan ("API Developer") gives a **one-time (lifetime) allowance of 1,000,000 characters**, not a monthly one (checked on the account page on 2026-10-26). After that it is paid. After signing up, copy your key from the "API keys" page (free-plan keys end with `:fx`).
 - **OpenAI / Anthropic**: Create an account, add a payment method (credits), then create a new key on the API keys page. The key is shown only once when it is created, so copy it right away. You pay for what you use.
 - Prices, free quotas, and sign-up steps may change. Check each service's site for the latest information.
 
