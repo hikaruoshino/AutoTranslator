@@ -47,12 +47,12 @@ try {
 # XML としては読まず、<api_keys> の中から各キーだけを取り出す。
 # ※ エラー文にはファイルの中身 (キー) が含まれることがあるので、ログには書かない
 function Get-ApiKeys {
-    $keys = @{ deepl = ''; openai = ''; claude = '' }
+    $keys = @{ deepl = ''; openai = ''; claude = ''; azure = ''; azure_region = '' }
     try {
         $content = [IO.File]::ReadAllText($SettingsPath, [Text.Encoding]::UTF8)
         $m = [regex]::Match($content, '<api_keys>(.*?)</api_keys>', 'Singleline')
         if (-not $m.Success) { Write-Log 'filler.xml: api_keys not found'; return $keys }
-        foreach ($p in @('deepl', 'openai', 'claude')) {
+        foreach ($p in @('deepl', 'openai', 'claude', 'azure', 'azure_region')) {
             $km = [regex]::Match($m.Groups[1].Value, '<' + $p + '>(.*?)</' + $p + '>', 'Singleline')
             if ($km.Success) {
                 $v = $km.Groups[1].Value.Trim().Trim('"', "'")
@@ -67,7 +67,8 @@ function Get-ApiKeys {
 
 # HTTP POST。応答は文字コードの指定に頼らず UTF-8 として読む (PowerShell 5.1 の文字化け対策)
 function Invoke-JsonPost([string]$url, [hashtable]$headers, $bodyObj) {
-    $json  = $bodyObj | ConvertTo-Json -Depth 8 -Compress
+    # 文字列で渡されたときは、組み立て済みの JSON としてそのまま送る (要素が 1 つの配列は ConvertTo-Json で配列でなくなるため)
+    if ($bodyObj -is [string]) { $json = $bodyObj } else { $json = $bodyObj | ConvertTo-Json -Depth 8 -Compress }
     $bytes = $Utf8NoBom.GetBytes($json)
 
     $req = [Net.HttpWebRequest]::Create($url)
@@ -291,8 +292,101 @@ function Invoke-Provider([string]$provider, [string]$key, $r) {
             $res = Invoke-JsonPost 'https://api.anthropic.com/v1/messages' @{ 'x-api-key' = $key; 'anthropic-version' = '2023-06-01' } $body
             return [string]$res.content[0].text
         }
+        'azure' {
+            return (Invoke-Azure $key $plainText $r)
+        }
     }
     throw ('unknown provider ' + $provider)
+}
+
+# --- azure-dictionary:begin ---
+# Azure の「辞書の指定」: 英語 → 日本語のとき、文中の地名などを、ゲームの日本語名に固定して訳させる。
+# 用語集は DeepL と同じ data/glossary_en_ja.tsv (英語名<TAB>日本語名)。HTML として送り、
+# <mstrans:dictionary translation="日本語名">英語名</mstrans:dictionary> で囲む。
+$script:AzureGlossary = $null
+$script:AzureGlossaryStamp = 0
+
+function Get-AzureGlossary {
+    $pair = $GlossaryPairs['en-ja']
+    if (-not $pair -or -not (Test-Path -LiteralPath $pair.Tsv)) { return @() }
+    $stamp = (Get-Item -LiteralPath $pair.Tsv).LastWriteTimeUtc.Ticks
+    if ($null -ne $script:AzureGlossary -and $script:AzureGlossaryStamp -eq $stamp) { return $script:AzureGlossary }
+    $list = New-Object System.Collections.Generic.List[object]
+    foreach ($line in [IO.File]::ReadAllLines($pair.Tsv, [Text.Encoding]::UTF8)) {
+        $parts = $line.Split("`t")
+        if ($parts.Length -lt 2) { continue }
+        $en = $parts[0].Trim(); $ja = $parts[1].Trim()
+        if ($en -eq '' -or $ja -eq '') { continue }
+        $list.Add(@{ En = $en; Ja = $ja })
+    }
+    # 長い名前を先に探す (例: "North Gustaberg" を "Gustaberg" より先に)
+    $script:AzureGlossary = @($list | Sort-Object { $_.En.Length } -Descending)
+    $script:AzureGlossaryStamp = $stamp
+    return $script:AzureGlossary
+}
+
+# 文を HTML にして、用語を辞書の指定で囲む。戻り値: @{ Html = 文字列; Count = 囲んだ数 }
+function ConvertTo-AzureHtml([string]$text, $entries) {
+    $claimed = New-Object System.Collections.Generic.List[object]
+    foreach ($e in $entries) {
+        $pos = 0
+        while ($pos -lt $text.Length) {
+            $i = $text.IndexOf($e.En, $pos, [StringComparison]::OrdinalIgnoreCase)
+            if ($i -lt 0) { break }
+            $end = $i + $e.En.Length
+            $pos = $i + 1
+            # 別の語の一部 (前後が英数字) は除く
+            if ($i -gt 0 -and [char]::IsLetterOrDigit($text[$i - 1])) { continue }
+            if ($end -lt $text.Length -and [char]::IsLetterOrDigit($text[$end])) { continue }
+            $overlap = $false
+            foreach ($c in $claimed) { if ($i -lt $c.E -and $end -gt $c.S) { $overlap = $true; break } }
+            if ($overlap) { continue }
+            $claimed.Add(@{ S = $i; E = $end; Ja = $e.Ja })
+        }
+    }
+    $sb = New-Object System.Text.StringBuilder
+    $cur = 0
+    foreach ($c in @($claimed | Sort-Object { $_.S })) {
+        [void]$sb.Append([System.Net.WebUtility]::HtmlEncode($text.Substring($cur, $c.S - $cur)))
+        $orig = $text.Substring($c.S, $c.E - $c.S)
+        [void]$sb.Append('<mstrans:dictionary translation="' + [System.Net.WebUtility]::HtmlEncode($c.Ja) + '">' + [System.Net.WebUtility]::HtmlEncode($orig) + '</mstrans:dictionary>')
+        $cur = $c.E
+    }
+    [void]$sb.Append([System.Net.WebUtility]::HtmlEncode($text.Substring($cur)))
+    return @{ Html = $sb.ToString(); Count = $claimed.Count }
+}
+# --- azure-dictionary:end ---
+
+# Azure Translator (Text Translation API v3.0)。元の言語は指定せず、サービスの自動判定に任せる
+function Invoke-Azure([string]$key, [string]$plainText, $r) {
+    $to = if ($r.target_lang -eq 'en') { 'en' } else { 'ja' }
+    $url = 'https://api.cognitive.microsofttranslator.com/translate?api-version=3.0&to=' + $to
+    $headers = @{ 'Ocp-Apim-Subscription-Key' = $key }
+    # グローバルのリソースでは、リージョンは要らない。リージョンのリソースのときだけ filler.xml の azure_region を送る
+    if ($script:AzureRegion -ne '') { $headers['Ocp-Apim-Subscription-Region'] = $script:AzureRegion }
+    # 英語 → 日本語で、用語集の語が文にあれば、辞書の指定つきの HTML で送る。無ければ、ふつうの文のまま
+    $payload = $plainText
+    $useHtml = $false
+    if ($to -eq 'ja') {
+        try {
+            $entries = Get-AzureGlossary
+            if ($entries.Count -gt 0) {
+                $m = ConvertTo-AzureHtml $plainText $entries
+                if ($m.Count -gt 0) { $payload = $m.Html; $useHtml = $true }
+            }
+        } catch { Write-Log ('azure dictionary skipped: ' + $_.Exception.Message) }
+    }
+    if ($useHtml) { $url += '&textType=html' }
+    # 要素が 1 つの配列は ConvertTo-Json で配列でなくなるので、JSON は文字列で組み立てる
+    $json = '[{"Text":' + ($payload | ConvertTo-Json -Compress) + '}]'
+    $res = Invoke-JsonPost $url $headers $json
+    $out = [string]$res[0].translations[0].text
+    if ($useHtml) {
+        # HTML で返るので、残った印を外し、文字参照を元に戻す
+        $out = [regex]::Replace($out, '<[^>]+>', '')
+        $out = [System.Net.WebUtility]::HtmlDecode($out)
+    }
+    return $out
 }
 
 function Write-Result([string]$id, [string]$content) {
@@ -317,11 +411,14 @@ function Invoke-Request([IO.FileInfo]$file) {
 
     $keys = Get-ApiKeys
     $primary = ([string]$r.provider).ToLower()
+    # Azure は、キーが設定されているときだけ使う (無ければ下の「キー無しは飛ばす」で外れる)
     $order = switch ($primary) {
-        'openai' { @('openai', 'deepl', 'claude') }
-        'claude' { @('claude', 'deepl', 'openai') }
-        default  { @('deepl', 'openai', 'claude') }
+        'openai' { @('openai', 'deepl', 'claude', 'azure') }
+        'claude' { @('claude', 'deepl', 'openai', 'azure') }
+        'azure'  { @('azure', 'deepl', 'openai', 'claude') }
+        default  { @('deepl', 'azure', 'openai', 'claude') }
     }
+    $script:AzureRegion = [string]$keys['azure_region']
 
     $errors = @()
     foreach ($p in $order) {

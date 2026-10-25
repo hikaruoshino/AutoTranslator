@@ -28,7 +28,7 @@ English follows the Japanese section. → [English](#english)
   - 略語は `//at slang add <略語> <意味>` で追加できます。意味を日本語で書くとそのまま訳文に入り、英語で書くと翻訳サービスがその英語を訳します。
 - **直前の発言を参考にして訳します。**（v3.2.0）同じチャットの直前の発言（最大 3 行・2 分以内）を、翻訳サービスに参考情報として渡します。DeepL では、参考情報は訳されず、文字数にも数えられません。
 - 一度翻訳した文は覚えておき、2 回目からはすぐに表示します。
-- 翻訳サービスは **DeepL**（おすすめ）、**OpenAI**、**Claude** から選べます。うまくいかないときは、キーが設定されているほかのサービスを順に試します。
+- 翻訳サービスは **DeepL**（おすすめ）、**OpenAI**、**Claude**、**Azure Translator**（v3.3.0・毎月リセットされる無料枠あり）から選べます。うまくいかないときは、キーが設定されているほかのサービスを順に試します。
 
 ### 表示例
 
@@ -67,10 +67,31 @@ Microsoft は VBScript を段階的に廃止する予定で、Windows 11 の新�
 | **DeepL**（おすすめ） | https://www.deepl.com/pro-api | https://www.deepl.com/your-account/keys |
 | **OpenAI** | https://platform.openai.com/signup | https://platform.openai.com/api-keys |
 | **Anthropic (Claude)** | https://console.anthropic.com/ | https://console.anthropic.com/settings/keys |
+| **Azure Translator** | https://azure.microsoft.com/free | Azure ポータルの Translator の「キーとエンドポイント」 (下の手順) |
 
 - **DeepL**: DeepL の無料のプラン (API Developer) は、**一回限りの 100 万文字**までです (毎月の無料枠ではありません。2026-10-26 に画面で確認)。使い切ると有料になります。登録後、「API キー」のページでキーをコピーします（無料版のキーは末尾が `:fx`）。
 - **OpenAI / Anthropic**: アカウントを作り、支払い方法（クレジット）を登録してから、API キーのページで新しいキーを作ります。キーは作ったときに一度しか表示されないので、すぐにコピーしてください。利用した分だけ料金がかかります。
 - 料金・無料枠・登録の手順は変わることがあります。最新の情報は各サービスのページで確認してください。
+
+#### Azure Translator（毎月リセットされる無料枠があります）
+
+Microsoft Azure の翻訳サービスです。**無料の価格レベル「Free F0」は、毎月 200 万文字まで無料で、翌月にリセットされます**（Microsoft の料金ページに「2 million characters ... free per month」とあります。2026-10-26 に確認）。DeepL の無料枠は一回限りなので、毎月使うなら Azure が向いています。
+
+> **重要: 価格レベルは、必ず「Free F0」を選んでください。** 有料の層（S1 など）を選ぶと、使った文字数に応じて**料金がかかります**。無料の層は、1 つのサブスクリプションに 1 つだけ作れます。
+
+1. https://azure.microsoft.com/free で、無料の Azure アカウントを作ります。**本人確認のために、クレジットカードの登録が必要です。** 画面には「従量課金に切り替えない限り、請求されない」と書かれています（2026-10-26 時点の表示）。無料アカウントには、最初の 30 日間だけ使えるクレジットも付きます。切り替えを求められたときは、Microsoft の案内を読んで、ご自身で判断してください。
+2. Azure ポータル https://portal.azure.com/ にサインインし、Translator の作成ページ https://portal.azure.com/#create/Microsoft.CognitiveServicesTextTranslation を開きます。
+3. 次のように入力します。
+   - **サブスクリプション**: 無料アカウントで作られたもの（通常は 1 つだけ）
+   - **リソース グループ**: 「新規作成」で、好きな名前
+   - **リージョン**: 「グローバル」（特別な理由がなければ）
+   - **名前**: Azure 全体で重複しない名前
+   - **価格レベル**: **「Free F0」を選ぶ**（ここで有料の層を選ぶと、料金がかかります）
+4. 「確認と作成」→「作成」。終わったら「リソースに移動」を押します。
+5. 左のメニューの「リソース管理」にある「**キーとエンドポイント**」で、「キー 1」をコピーします。同じ画面の「場所/リージョン」が `global` 以外（例: `japaneast`）のときは、その文字列も控えます。
+6. 念のため、Azure の「コスト管理」で、予算のアラート（例: 月 1 ドルを超えたらメール）を作っておくと安心です。
+
+Azure で訳すと、英語 → 日本語のときに、`glossary_en_ja.tsv` の地名・エリア名を、ゲームの日本語名に固定して訳します（Azure の辞書の指定を使います。`lets go to Norg` → 「ノーグに行こう」）。日本語 → 英語は、DeepL と同じく、送る前に地名を英語名に置き換えます。
 
 ### 入れ方
 
@@ -86,9 +107,12 @@ Microsoft は VBScript を段階的に廃止する予定で、Windows 11 の新�
        <deepl>ここに DeepL の API キー</deepl>
        <openai>YOUR_OPENAI_API_KEY</openai>
        <claude>YOUR_CLAUDE_API_KEY</claude>
+       <azure>ここに Azure のキー 1</azure>
+       <azure_region></azure_region>
    </api_keys>
    ```
    - 使わないサービスは `YOUR_...` のままで構いません。
+   - `<azure_region>` は、Azure の「場所/リージョン」が `global` なら空のままで構いません。`japaneast` などのときは、その文字列を書きます。
    - DeepL 無料版のキーは末尾が `:fx` です。自動で無料版の窓口を使います。
 5. ゲーム内で `//lua l autotranslator` を打って読み込みます。
 
@@ -100,7 +124,7 @@ Microsoft は VBScript を段階的に廃止する予定で、Windows 11 の新�
 |---|---|
 | `//at lang ja` | 英語 → 日本語に翻訳する（日本語を使う人向け） |
 | `//at lang en` | 日本語 → 英語に翻訳する（英語を使う人向け） |
-| `//at provider deepl` / `openai` / `claude` | 最初に使う翻訳サービスを選ぶ |
+| `//at provider deepl` / `openai` / `claude` / `azure` | 最初に使う翻訳サービスを選ぶ |
 | `//at test <文>` | 翻訳を試す（例: `//at test good morning`） |
 | `//at add <単語> <訳>` | 辞書に追加する（辞書にある発言は API を使わずに訳します） |
 | `//at del <単語>` | 辞書から削除する |
@@ -175,7 +199,7 @@ MIT License です。詳しくは [LICENSE](LICENSE) を見てください。
   - Add your own with `//at slang add <abbreviation> <meaning>`. A Japanese meaning is inserted into the translation as is; an English meaning is translated by the service.
 - **Previous messages are used as context.** (v3.2.0) Up to 3 earlier lines from the same chat (within 2 minutes) are passed to the translation service as reference. With DeepL, this context is not translated and is not counted toward your character usage.
 - Translations are cached, so the same message appears instantly the second time.
-- Choose your translation service: **DeepL** (recommended), **OpenAI**, or **Claude**. If one fails, the other services that have a key are tried in order.
+- Choose your translation service: **DeepL** (recommended), **OpenAI**, **Claude**, or **Azure Translator** (v3.3.0; has a free allowance that resets every month). If one fails, the other services that have a key are tried in order.
 
 ### Example
 
@@ -214,10 +238,31 @@ The translator helper is "a PowerShell script with no window that connects to th
 | **DeepL** (recommended) | https://www.deepl.com/pro-api | https://www.deepl.com/your-account/keys |
 | **OpenAI** | https://platform.openai.com/signup | https://platform.openai.com/api-keys |
 | **Anthropic (Claude)** | https://console.anthropic.com/ | https://console.anthropic.com/settings/keys |
+| **Azure Translator** | https://azure.microsoft.com/free | "Keys and Endpoint" of your Translator resource in the Azure portal (steps below) |
 
 - **DeepL**: The free DeepL API plan ("API Developer") gives a **one-time (lifetime) allowance of 1,000,000 characters**, not a monthly one (checked on the account page on 2026-10-26). After that it is paid. After signing up, copy your key from the "API keys" page (free-plan keys end with `:fx`).
 - **OpenAI / Anthropic**: Create an account, add a payment method (credits), then create a new key on the API keys page. The key is shown only once when it is created, so copy it right away. You pay for what you use.
 - Prices, free quotas, and sign-up steps may change. Check each service's site for the latest information.
+
+#### Azure Translator (free allowance that resets every month)
+
+Microsoft Azure's translation service. **The free pricing tier "Free F0" gives 2,000,000 characters per month at no cost, and it resets every month** (Microsoft's pricing page says "2 million characters ... free per month"; checked 2026-10-26). DeepL's free allowance is one-time only, so Azure suits monthly use.
+
+> **Important: always choose the pricing tier "Free F0".** If you pick a paid tier (S1 and so on), you **will be charged** for the characters you use. Only one free resource is available per subscription.
+
+1. Create a free Azure account at https://azure.microsoft.com/free. **A credit card is required for identity verification.** The sign-up screen says you will not be charged unless you move to pay-as-you-go pricing (as shown on 2026-10-26). The free account also includes a credit that is usable for the first 30 days. If you are asked to switch plans, read Microsoft's notice and decide for yourself.
+2. Sign in to the Azure portal at https://portal.azure.com/ and open the Translator creation page: https://portal.azure.com/#create/Microsoft.CognitiveServicesTextTranslation
+3. Fill in the form:
+   - **Subscription**: the one created with your free account (usually the only one)
+   - **Resource group**: create a new one with any name
+   - **Region**: "Global" (unless you have a specific reason)
+   - **Name**: a name that is unique across Azure
+   - **Pricing tier**: **choose "Free F0"** (a paid tier here will be billed)
+4. Click "Review + create", then "Create". When it finishes, click "Go to resource".
+5. In the left menu, under "Resource Management", open "**Keys and Endpoint**" and copy "KEY 1". If the "Location/Region" value on the same page is something other than `global` (for example `japaneast`), note it down as well.
+6. As a precaution, create a budget alert in Azure "Cost Management" (for example, an email when spending passes 1 USD per month).
+
+When you use Azure, English → Japanese translation fixes the area names in `glossary_en_ja.tsv` to the in-game Japanese names (using Azure's custom dictionary markup; `lets go to Norg` → 「ノーグに行こう」). Japanese → English replaces place names with their English names before sending, as with DeepL.
 
 ### Installation
 
@@ -233,9 +278,12 @@ The translator helper is "a PowerShell script with no window that connects to th
        <deepl>your DeepL API key here</deepl>
        <openai>YOUR_OPENAI_API_KEY</openai>
        <claude>YOUR_CLAUDE_API_KEY</claude>
+       <azure>your Azure KEY 1 here</azure>
+       <azure_region></azure_region>
    </api_keys>
    ```
    - Leave `YOUR_...` for services you do not use.
+   - Leave `<azure_region>` empty if the Azure "Location/Region" is `global`. If it is something like `japaneast`, write that value.
    - DeepL free-plan keys end with `:fx`; the free endpoint is used automatically.
 5. Type `//lua l autotranslator` in game to load the addon.
 
@@ -247,7 +295,7 @@ The translator helper is "a PowerShell script with no window that connects to th
 |---|---|
 | `//at lang ja` | Translate English → Japanese (for Japanese players) |
 | `//at lang en` | Translate Japanese → English (for English players) |
-| `//at provider deepl` / `openai` / `claude` | Choose the translation service to try first |
+| `//at provider deepl` / `openai` / `claude` / `azure` | Choose the translation service to try first |
 | `//at test <text>` | Test a translation (e.g. `//at test good morning`) |
 | `//at add <word> <translation>` | Add a dictionary entry (dictionary hits are translated without an API) |
 | `//at del <word>` | Remove a dictionary entry |

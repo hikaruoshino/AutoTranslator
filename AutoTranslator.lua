@@ -1,6 +1,6 @@
 _addon.name     = 'AutoTranslator'
 _addon.author   = 'hikaruoshino'
-_addon.version  = '3.2.0'
+_addon.version  = '3.3.0'
 _addon.commands = {'at', 'autotranslate'}
 
 local config      = require('config')
@@ -61,7 +61,9 @@ local defaults = {
     api_keys = {
         openai = 'YOUR_OPENAI_API_KEY',
         claude = 'YOUR_CLAUDE_API_KEY',
-        deepl  = 'YOUR_DEEPL_API_KEY'
+        deepl  = 'YOUR_DEEPL_API_KEY',
+        azure  = 'YOUR_AZURE_API_KEY',
+        azure_region = ''
     },
     enabled = true,
     hud_enabled = false,
@@ -127,8 +129,9 @@ local function sanitize_settings()
     else clean_modes = valid_modes end
     settings.modes = clean_modes
 
-    local valid_providers = { openai = true, claude = true, deepl = true }
-    local clean_keys = { openai = 'YOUR_OPENAI_API_KEY', claude = 'YOUR_CLAUDE_API_KEY', deepl = 'YOUR_DEEPL_API_KEY' }
+    local valid_providers = { openai = true, claude = true, deepl = true, azure = true, azure_region = true }
+    local clean_keys = { openai = 'YOUR_OPENAI_API_KEY', claude = 'YOUR_CLAUDE_API_KEY', deepl = 'YOUR_DEEPL_API_KEY',
+        azure = 'YOUR_AZURE_API_KEY', azure_region = '' }
     if type(settings.api_keys) == 'table' then
         for p in pairs(valid_providers) do
             if type(settings.api_keys[p]) == 'string' then clean_keys[p] = settings.api_keys[p] end
@@ -436,7 +439,7 @@ windower.register_event('addon command', function(cmd, ...)
         end
 
     elseif cmd == 'provider' or cmd == 'ai' then
-        if arg1 == 'openai' or arg1 == 'claude' or arg1 == 'deepl' then
+        if arg1 == 'openai' or arg1 == 'claude' or arg1 == 'deepl' or arg1 == 'azure' then
             settings.api_provider = arg1
             safe_save_settings()
             emit(207, 'AutoTranslator: API Provider set to [' .. arg1:upper() .. '].')

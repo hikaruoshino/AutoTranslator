@@ -7,6 +7,8 @@
             <deepl>YOUR_DEEPL_API_KEY</deepl>
             <openai>YOUR_OPENAI_API_KEY</openai>
             <claude>YOUR_CLAUDE_API_KEY</claude>
+            <azure>YOUR_AZURE_API_KEY</azure>
+            <azure_region></azure_region>
         </api_keys>
         <enabled>true</enabled>
         <hud_enabled>false</hud_enabled>
