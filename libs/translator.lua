@@ -103,7 +103,7 @@ local function execute_single_provider(provider, text, settings, send_utf8, cont
     local utf8_text = send_utf8 or encoding.to_utf8(text)
     local url, headers, req_body
 
-    local user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AutoTranslator/3.2.0"
+    local user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AutoTranslator/3.3.1"
 
     if provider == 'openai' then
         url = "https://api.openai.com/v1/chat/completions"
@@ -191,6 +191,10 @@ local function execute_single_provider(provider, text, settings, send_utf8, cont
 
     return nil, string.format("HTTP %s", tostring(code))
 end
+
+-- ヘルパーが使えないときの Lua の HTTP は、返事を待つ間ゲームが止まる。全部失敗したら、しばらく試さない
+local FALLBACK_PAUSE_SEC = 60
+local fallback_off_until = 0
 
 local function schedule_async(fn)
     if coroutine and type(coroutine.schedule) == 'function' then
@@ -338,6 +342,10 @@ function translator.translate(text, settings, req_id, callback, context)
     end
 
     -- 3. Fallback Lua Http pipeline (ヘルパーが使えないときだけ。返事を待つ間ゲームが止まる)
+    if os.clock() < fallback_off_until then
+        if type(callback) == 'function' then callback(nil, '') end   -- 休止中は黙って捨てる (毎発言にエラーを出さない)
+        return nil
+    end
     schedule_async(function()
         local provider_order = {}
         local primary = (settings.api_provider or 'deepl'):lower()
@@ -371,6 +379,11 @@ function translator.translate(text, settings, req_id, callback, context)
         end
 
         local final_err = last_err or "DeepL / OpenAI API Keys missing or failed"
+        if last_err then
+            -- 鍵はあるのに失敗した (通信断など) ときだけ休む。休むことは、このエラーの 1 回だけで知らせる (休止中は黙って捨てる)
+            fallback_off_until = os.clock() + FALLBACK_PAUSE_SEC
+            final_err = final_err .. string.format(" -- direct translation paused for %d s", FALLBACK_PAUSE_SEC)
+        end
         if type(callback) == 'function' then callback(nil, final_err) end
     end)
 

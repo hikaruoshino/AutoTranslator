@@ -12,7 +12,7 @@ end
 
 function encoding.trim_ascii(s)
     if not s or type(s) ~= 'string' then return '' end
-    return s:gsub('^[ \t\r\n]+', ''):gsub('[ \t\r\n]+$', '')
+    return (s:gsub('^[ \t\r\n]+', ''):gsub('[ \t\r\n]+$', ''))   -- 外側の () で 1 値にする (gsub は 2 値を返す)
 end
 
 function encoding.sanitize_autotranslate_tokens(s)

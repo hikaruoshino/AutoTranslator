@@ -1,6 +1,6 @@
 _addon.name     = 'AutoTranslator'
 _addon.author   = 'hikaruoshino'
-_addon.version  = '3.3.0'
+_addon.version  = '3.3.1'
 _addon.commands = {'at', 'autotranslate'}
 
 local config      = require('config')
@@ -320,7 +320,7 @@ windower.register_event('incoming text', function(original, modified, mode, modi
                 hud.update(log_output)
             elseif err then
                 pending_requests[req_id] = nil
-                emit(123, encoding.sjis('[AutoTranslator Error] ') .. tostring(err))
+                if err ~= '' then emit(123, encoding.sjis('[AutoTranslator Error] ') .. tostring(err)) end
             end
         end, context)
     end
@@ -352,7 +352,9 @@ windower.register_event('addon command', function(cmd, ...)
                 hud.update(out)
             elseif err then
                 pending_requests[req_id] = nil
-                emit(123, 'AutoTranslator [Test Result]: Translation failed. ' .. tostring(err))
+                -- err が空のときは、通信の失敗のあとの休止中 (しばらくしてから試し直す)
+                local reason = err ~= '' and tostring(err) or 'direct translation is paused after a network failure. Try again in a minute.'
+                emit(123, 'AutoTranslator [Test Result]: Translation failed. ' .. reason)
             end
         end)
 

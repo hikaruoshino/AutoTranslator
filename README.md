@@ -157,6 +157,7 @@ Azure で訳すと、英語 → 日本語のときに、`glossary_en_ja.tsv` の
   - DeepL 無料版では用語集を 1 つしか作れないため、日本語 → 英語では用語集を使わず、送る前に地名を英語名に置き換えます。
   - 用語集の登録情報は `data/deepl_glossary.txt` に保存されます（API キーが変わったときは自動で登録し直します）。
 - 翻訳ヘルパーの動きは `data/queue/helper.log` に記録されます（API キーは記録しません）。
+- 翻訳ヘルパーが動いていないときは、ゲームから直接 DeepL・OpenAI・Claude に問い合わせます（返事を待つ間、ゲームが止まります）。通信の失敗などで全部失敗したときは、そのエラーを 1 回出して、60 秒間この問い合わせを止めます（v3.3.1）。
 
 ### 注意
 
@@ -328,6 +329,7 @@ Game (Lua)                                    Translator helper (PowerShell, no 
   - The DeepL free plan allows only one glossary, so Japanese → English does not use a glossary; place names are replaced with their English names before sending.
   - The glossary registration is stored in `data/deepl_glossary.txt` (it is re-registered automatically when your API key changes).
 - The helper's activity is logged to `data/queue/helper.log` (API keys are never logged).
+- When the helper is not running, the addon asks DeepL, OpenAI and Claude directly, and the game freezes while it waits for the answer. If they all fail (for example, the network is down), it shows that error once and stops asking directly for 60 seconds (v3.3.1).
 
 ### Notes
 

@@ -2,8 +2,32 @@ local encoding = require('libs/encoding')
 local json     = require('libs/json')
 
 local cache = {}
-local memory_cache = {}
 local dictionary = {}
+
+-- 翻訳の記憶は 2 世代。1 世代が LIMIT 件になったら古いほうを捨てる (長時間でも増え続けない)
+local CACHE_LIMIT = 2000
+local gen_a, gen_b, count_a = {}, {}, 0
+
+local function mem_get(k)
+    local v = gen_a[k]
+    if v ~= nil then return v end
+    v = gen_b[k]
+    if v ~= nil then gen_a[k] = v; count_a = count_a + 1 end   -- 使われたものは新しい世代へ
+    return v
+end
+
+local function mem_set(k, v)
+    if gen_a[k] == nil then count_a = count_a + 1 end
+    gen_a[k] = v
+    if count_a >= CACHE_LIMIT then gen_b, gen_a, count_a = gen_a, {}, 0 end
+end
+
+local function mem_del(k)
+    if gen_a[k] ~= nil then gen_a[k] = nil; count_a = count_a - 1 end
+    gen_b[k] = nil
+end
+
+local function mem_clear() gen_a, gen_b, count_a = {}, {}, 0 end
 
 local dict_file_path = windower.addon_path .. 'data/dictionary.json'
 
@@ -33,7 +57,7 @@ end
 
 function cache.init(dict_settings)
     dictionary = {}
-    memory_cache = {}
+    mem_clear()
 
     if type(dict_settings) == 'table' then
         for k, v in pairs(dict_settings) do
@@ -50,10 +74,11 @@ function cache.get(text)
     if not text or text == '' then return nil end
     local clean_lower = encoding.trim_ascii(text):lower()
 
-    if memory_cache[clean_lower] then return memory_cache[clean_lower] end
+    local hit = mem_get(clean_lower)
+    if hit then return hit end
     if dictionary[clean_lower] then
         local res = dictionary[clean_lower]
-        memory_cache[clean_lower] = res
+        mem_set(clean_lower, res)
         return res
     end
 
@@ -62,14 +87,14 @@ end
 
 function cache.set(text, translation)
     if not text or not translation or text == '' or translation == '' then return end
-    memory_cache[encoding.trim_ascii(text):lower()] = translation
+    mem_set(encoding.trim_ascii(text):lower(), translation)
 end
 
 function cache.add_dict_item(key, value)
     if not key or not value or key == '' or value == '' then return end
     local k_lower = encoding.trim_ascii(key):lower()
     dictionary[k_lower] = value
-    memory_cache[k_lower] = value
+    mem_set(k_lower, value)
     save_json_dictionary()
 end
 
@@ -78,7 +103,7 @@ function cache.del_dict_item(key)
     local k_lower = encoding.trim_ascii(key):lower()
     if dictionary[k_lower] ~= nil then
         dictionary[k_lower] = nil
-        memory_cache[k_lower] = nil
+        mem_del(k_lower)
         save_json_dictionary()
         return true
     end
@@ -90,7 +115,7 @@ function cache.get_dictionary()
 end
 
 function cache.invalidate()
-    memory_cache = {}
+    mem_clear()
 end
 
 return cache

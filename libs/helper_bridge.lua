@@ -93,6 +93,25 @@ function helper_bridge.submit(req_id, text, settings, system_prompt, terms, xml,
     return true
 end
 
+-- 翻訳結果を表示用に無害化する。制御文字 (色の指定 0x1E/0x1F・定型文 0xFD の前後など) は空白に、
+-- 長さは上限 (バイト) で、UTF-8 の文字の途中では切らない
+local RESULT_MAX_BYTES = 400
+function helper_bridge.clean_result(s)
+    s = tostring(s or '')
+    s = s:gsub('[%z\1-\31\127]', ' '):gsub('%s+', ' ')
+    s = s:gsub('^ ', ''):gsub(' $', '')
+    if #s > RESULT_MAX_BYTES then
+        local cut = RESULT_MAX_BYTES
+        -- 続きのバイト (10xxxxxx) の途中なら、文字の先頭まで戻る
+        while cut > 0 do
+            local b = s:byte(cut + 1)
+            if b and b >= 0x80 and b < 0xC0 then cut = cut - 1 else break end
+        end
+        s = s:sub(1, cut)
+    end
+    return s
+end
+
 -- 結果を 1 件返す (無ければ nil)。{ id, success, text (UTF-8), provider, error }
 function helper_bridge.poll()
     if not started then return nil end
@@ -111,7 +130,7 @@ function helper_bridge.poll()
             pending[req_id] = nil
 
             local status, provider, body = content:match('^(%u+)\r?\n([^\r\n]*)\r?\n(.*)$')
-            body = (body or ''):gsub('[\r\n]+', ' ')
+            body = helper_bridge.clean_result(body)
             if status == 'OK' then
                 return { id = req_id, success = true, text = body, provider = provider }
             end
